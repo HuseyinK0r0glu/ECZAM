@@ -1,0 +1,62 @@
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /api/v1
+
+spring:
+  main:
+    banner-mode: "off"
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/eczam}
+    username: ${DATABASE_USER:eczam}
+    password: ${DATABASE_PASSWORD:eczam}
+  jpa:
+    hibernate:
+      ddl-auto: validate        # schema is owned by Flyway
+    properties:
+      hibernate.format_sql: false
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASS:}
+
+logging:
+  level:
+    root: warn
+
+eczam:
+  jwt:
+    secret: ${JWT_SECRET:dev-secret-change-me-dev-secret-change-me-32b}
+    access-ttl: PT2H            # 2 hours
+    refresh-ttl: P7D           # 7 days
+    reset-ttl: PT30M           # 30 minutes
+  cors:
+    allowed-origin: ${FRONTEND_URL:http://localhost:5173}
+  vapid:
+    public-key: ${VAPID_PUBLIC_KEY:}
+    private-key: ${VAPID_PRIVATE_KEY:}
+    subject: ${VAPID_EMAIL:mailto:admin@eczam.app}
+  ai:
+    anthropic-model: claude-sonnet-4-6      # brief §8.3
+    embedding-model: text-embedding-3-small # 1536 dims (matches VECTOR(1536))
+    top-k: 5
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+
+management:
+  health:
+    mail:
+      enabled: false   # optional channel (Phase 4); don't gate app health on unconfigured SMTP
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+

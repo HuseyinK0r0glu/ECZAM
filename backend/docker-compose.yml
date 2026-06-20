@@ -1,0 +1,14 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: eczam-db
+    environment:
+      POSTGRES_DB: eczam
+      POSTGRES_USER: eczam
+      POSTGRES_PASSWORD: eczam
+    ports:
+      - "5432:5432"
+    volumes:
+      - eczam_pgdata:/var/lib/postgresql/data
+volumes:
+  eczam_pgdata:
