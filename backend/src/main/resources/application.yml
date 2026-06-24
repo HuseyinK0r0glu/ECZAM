@@ -2,61 +2,115 @@ server:
   port: ${PORT:8080}
   servlet:
     context-path: /api/v1
+  # Graceful shutdown: finish in-flight requests before exiting
+  shutdown: graceful
+  compression:
+    enabled: true
+    mime-types: application/json,text/event-stream
+    min-response-size: 2048
 
 spring:
   main:
     banner-mode: "off"
+
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/eczam}
     username: ${DATABASE_USER:eczam}
     password: ${DATABASE_PASSWORD:eczam}
+    hikari:
+      # Connection pool tuning for a medium-load API
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 600000      # 10 min
+      connection-timeout: 30000  # 30 s
+      max-lifetime: 1800000      # 30 min
+      leak-detection-threshold: 60000  # warn if connection held > 60 s
+
   jpa:
     hibernate:
-      ddl-auto: validate        # schema is owned by Flyway
+      ddl-auto: validate        # schema owned by Flyway
     properties:
       hibernate.format_sql: false
+      hibernate.jdbc.batch_size: 25
+      hibernate.order_inserts: true
+      hibernate.order_updates: true
     open-in-view: false
+
   flyway:
     enabled: true
     locations: classpath:db/migration
+
   mail:
     host: ${SMTP_HOST:}
     port: ${SMTP_PORT:587}
     username: ${SMTP_USER:}
     password: ${SMTP_PASS:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls.enable: true
+          connectiontimeout: 5000
+          timeout: 5000
 
 logging:
   level:
     root: warn
+    com.eczam: info
+  pattern:
+    console: "%d{HH:mm:ss} [%X{correlationId}] %-5level %logger{36} - %msg%n"
 
 eczam:
+  app:
+    name: ECZAM
+
   jwt:
     secret: ${JWT_SECRET:dev-secret-change-me-dev-secret-change-me-32b}
     access-ttl: PT2H            # 2 hours
-    refresh-ttl: P7D           # 7 days
-    reset-ttl: PT30M           # 30 minutes
+    refresh-ttl: P7D            # 7 days (opaque token stored in DB)
+    reset-ttl: PT30M            # 30 minutes
+
   cors:
+    # Single origin (backward-compatible) — override with FRONTEND_URL
     allowed-origin: ${FRONTEND_URL:http://localhost:5173}
+    # Multiple origins (comma-separated) — takes precedence if set
+    # allowed-origins: https://app.eczam.com,https://staging.eczam.com
+
   vapid:
     public-key: ${VAPID_PUBLIC_KEY:}
     private-key: ${VAPID_PRIVATE_KEY:}
     subject: ${VAPID_EMAIL:mailto:admin@eczam.app}
+
   ai:
-    anthropic-model: claude-sonnet-4-6      # brief §8.3
-    embedding-model: text-embedding-3-small # 1536 dims (matches VECTOR(1536))
+    anthropic-model: claude-sonnet-4-6
+    embedding-model: text-embedding-3-small  # 1536 dims
     top-k: 5
+
+  google:
+    # EDIT THIS — set to your Google OAuth 2.0 client ID from Google Cloud Console
+    client-id: ${GOOGLE_CLIENT_ID:}
 
 springdoc:
   swagger-ui:
     path: /swagger-ui
+  api-docs:
+    path: /v3/api-docs
 
 management:
-  health:
-    mail:
-      enabled: false   # optional channel (Phase 4); don't gate app health on unconfigured SMTP
   endpoints:
     web:
       exposure:
-        include: health,info
-
-
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+      roles: ADMIN
+  health:
+    mail:
+      enabled: false   # don't gate health on optional SMTP
+  metrics:
+    tags:
+      application: eczam

@@ -7,8 +7,10 @@ import com.eczam.notifications.NotificationType;
 import com.eczam.reminders.MedicationSchedule;
 import com.eczam.reminders.MedicationScheduleRepository;
 import com.eczam.reminders.ScheduleService;
+import io.micrometer.core.instrument.Counter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -27,11 +29,21 @@ public class ReminderScheduler {
     private final UserMedicationRepository inventory;
     private final NotificationService notifications;
     private final NotificationDedupe dedupe;
+    private final Counter lowStockAlertsCounter;
+    private final Counter expiryAlertsCounter;
 
-    public ReminderScheduler(MedicationScheduleRepository schedules, UserMedicationRepository inventory,
-                             NotificationService notifications, NotificationDedupe dedupe) {
-        this.schedules = schedules; this.inventory = inventory;
-        this.notifications = notifications; this.dedupe = dedupe;
+    public ReminderScheduler(MedicationScheduleRepository schedules,
+                             UserMedicationRepository inventory,
+                             NotificationService notifications,
+                             NotificationDedupe dedupe,
+                             @Qualifier("lowStockAlertsCounter") Counter lowStockAlertsCounter,
+                             @Qualifier("expiryAlertsCounter") Counter expiryAlertsCounter) {
+        this.schedules = schedules;
+        this.inventory = inventory;
+        this.notifications = notifications;
+        this.dedupe = dedupe;
+        this.lowStockAlertsCounter = lowStockAlertsCounter;
+        this.expiryAlertsCounter = expiryAlertsCounter;
     }
 
     // Not wrapped in a single (read-only) transaction: each repository read runs in its
@@ -66,6 +78,7 @@ public class ReminderScheduler {
         for (UserMedication um : inventory.findLowStock()) {
             String key = "low:" + um.getId() + ":" + LocalDate.now();
             if (!dedupe.firstTimeToday(key)) continue;
+            lowStockAlertsCounter.increment();
             notifications.notifyUser(um.getUserId(), NotificationType.LOW_STOCK,
                     "Az kaldı: " + um.getMedication().getName(),
                     "Kalan: " + um.getQuantity() + " " + um.getUnit(),
@@ -77,6 +90,7 @@ public class ReminderScheduler {
         for (UserMedication um : inventory.findExpiringSoon()) {
             String key = "exp:" + um.getId() + ":" + LocalDate.now();
             if (!dedupe.firstTimeToday(key)) continue;
+            expiryAlertsCounter.increment();
             long days = ChronoUnit.DAYS.between(LocalDate.now(), um.getExpirationDate());
             notifications.notifyUser(um.getUserId(), NotificationType.EXPIRY_WARNING,
                     "Yakında dolacak: " + um.getMedication().getName(),
@@ -85,6 +99,7 @@ public class ReminderScheduler {
         for (UserMedication um : inventory.findExpired()) {
             String key = "expd:" + um.getId() + ":" + LocalDate.now();
             if (!dedupe.firstTimeToday(key)) continue;
+            expiryAlertsCounter.increment();
             notifications.notifyUser(um.getUserId(), NotificationType.EXPIRED,
                     "Süresi doldu: " + um.getMedication().getName(),
                     "Son kullanma: " + um.getExpirationDate(),

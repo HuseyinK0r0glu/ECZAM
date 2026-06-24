@@ -28,7 +28,7 @@ class ExpirationIntegrationTest extends AbstractIntegrationTest {
 
     private Ctx registerUser(String email) {
         var reg = rest.postForEntity("/auth/register",
-                Map.of("email", email, "password", "password1", "displayName", "Exp"), Map.class);
+                Map.of("email", email, "password", "ValidP@ss1!", "displayName", "Exp"), Map.class);
         assertThat(reg.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         @SuppressWarnings("unchecked")
         Map<String, Object> data = (Map<String, Object>) reg.getBody().get("data");

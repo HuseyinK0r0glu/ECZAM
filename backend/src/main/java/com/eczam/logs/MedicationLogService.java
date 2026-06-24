@@ -7,6 +7,8 @@ import com.eczam.shared.web.ApiException;
 import com.eczam.shared.web.ErrorCode;
 import com.eczam.shared.web.Inputs;
 import com.eczam.users.UserRepository;
+import io.micrometer.core.instrument.Counter;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,9 +24,16 @@ public class MedicationLogService {
     private final MedicationLogRepository logs;
     private final UserMedicationRepository inventory;
     private final UserRepository users;
+    private final Counter doseLoggedCounter;
 
-    public MedicationLogService(MedicationLogRepository logs, UserMedicationRepository inventory, UserRepository users) {
-        this.logs = logs; this.inventory = inventory; this.users = users;
+    public MedicationLogService(MedicationLogRepository logs,
+                                UserMedicationRepository inventory,
+                                UserRepository users,
+                                @Qualifier("doseLoggedCounter") Counter doseLoggedCounter) {
+        this.logs = logs;
+        this.inventory = inventory;
+        this.users = users;
+        this.doseLoggedCounter = doseLoggedCounter;
     }
 
     /** Atomic: lock the inventory row, guard stock, insert log, decrement (UC-005, FR-040..043). */
@@ -54,6 +63,7 @@ public class MedicationLogService {
                 .map(u -> u.getNotificationPreferences().lowStockThreshold()).orElse(7);
         boolean lowStock = um.getQuantity().doubleValue() <= threshold;
 
+        doseLoggedCounter.increment();
         return new LogResult(toView(log), um.getQuantity(), lowStock);
     }
 

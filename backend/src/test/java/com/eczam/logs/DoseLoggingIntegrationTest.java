@@ -31,7 +31,7 @@ class DoseLoggingIntegrationTest extends AbstractIntegrationTest {
 
     private Ctx registerUser(String email) {
         var reg = rest.postForEntity("/auth/register",
-                Map.of("email", email, "password", "password1", "displayName", "Test"),
+                Map.of("email", email, "password", "ValidP@ss1!", "displayName", "Test"),
                 Map.class);
         assertThat(reg.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         @SuppressWarnings("unchecked")

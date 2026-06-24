@@ -19,8 +19,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiResponse<Void>> handleApi(ApiException ex) {
-        return ResponseEntity.status(ex.status())
-                .body(ApiResponse.fail(new ApiError(ex.code(), ex.getMessage())));
+        ApiError error = ex.fields() != null
+                ? new ApiError(ex.code(), ex.getMessage(), ex.fields())
+                : new ApiError(ex.code(), ex.getMessage());
+        return ResponseEntity.status(ex.status()).body(ApiResponse.fail(error));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -33,7 +35,6 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.fail(new ApiError(ErrorCode.VALIDATION_FAILED, "Validation failed", fields)));
     }
 
-    /** Malformed values from the wire (bad path/query types, unparseable times) → 422, not 500. */
     @ExceptionHandler({ MethodArgumentTypeMismatchException.class, DateTimeParseException.class })
     public ResponseEntity<ApiResponse<Void>> handleBadValue(Exception ex) {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)

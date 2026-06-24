@@ -31,6 +31,7 @@ public class JwtService {
     private String generate(UUID userId, TokenType type, long ttlSeconds) {
         Instant now = Instant.now();
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())   // jti: unique per token
                 .subject(userId.toString())
                 .claim("type", type.name())
                 .issuedAt(Date.from(now))
