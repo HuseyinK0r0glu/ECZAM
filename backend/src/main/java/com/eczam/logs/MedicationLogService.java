@@ -43,6 +43,16 @@ public class MedicationLogService {
         UserMedication um = inventory.findByIdAndUserIdForUpdate(umId, userId)
                 .orElseThrow(() -> ApiException.notFound("Inventory entry not found"));
 
+        // Idempotent replay: a queued offline dose-log retried on reconnect carries
+        // the same client key — return the original result without decrementing again.
+        String key = req.clientRequestId();
+        if (key != null && !key.isBlank()) {
+            var existing = logs.findByUserMedicationIdAndClientRequestId(umId, key);
+            if (existing.isPresent()) {
+                return new LogResult(toView(existing.get()), um.getQuantity(), isLow(userId, um));
+            }
+        }
+
         BigDecimal qty = req.quantityUsed();
         if (um.getQuantity().compareTo(qty) < 0) {
             throw ApiException.badRequest(ErrorCode.INSUFFICIENT_STOCK,
@@ -54,17 +64,20 @@ public class MedicationLogService {
         log.setScheduleId(Inputs.uuidOrNull(req.scheduleId(), "scheduleId"));
         log.setQuantityUsed(qty);
         log.setNotes(req.notes());
+        log.setClientRequestId((key != null && !key.isBlank()) ? key : null);
         log.setTakenAt(OffsetDateTime.now());
         logs.save(log);
 
         um.setQuantity(um.getQuantity().subtract(qty));
 
+        doseLoggedCounter.increment();
+        return new LogResult(toView(log), um.getQuantity(), isLow(userId, um));
+    }
+
+    private boolean isLow(UUID userId, UserMedication um) {
         int threshold = users.findById(userId)
                 .map(u -> u.getNotificationPreferences().lowStockThreshold()).orElse(7);
-        boolean lowStock = um.getQuantity().doubleValue() <= threshold;
-
-        doseLoggedCounter.increment();
-        return new LogResult(toView(log), um.getQuantity(), lowStock);
+        return um.getQuantity().doubleValue() <= threshold;
     }
 
     @Transactional(readOnly = true)

@@ -6,11 +6,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface MedicationRepository extends JpaRepository<Medication, UUID> {
     Optional<Medication> findByBarcode(String barcode);
+    Optional<Medication> findByGtin(String gtin);
 
     @Query("""
            SELECT m FROM Medication m
@@ -19,4 +21,8 @@ public interface MedicationRepository extends JpaRepository<Medication, UUID> {
            ORDER BY m.name ASC
            """)
     Page<Medication> search(@Param("q") String q, Pageable pageable);
+
+    /** Real-leaflet rows still awaiting embedding — drives the Stage B seed (resumable). */
+    @Query("SELECT m.id FROM Medication m WHERE m.leafletRaw IS NOT NULL AND m.vectorIndexed = false ORDER BY m.id")
+    List<UUID> findUnindexedLeafletIds();
 }

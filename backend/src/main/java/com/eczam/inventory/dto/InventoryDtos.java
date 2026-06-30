@@ -14,6 +14,8 @@ public final class InventoryDtos {
     public record InventoryItem(
             String id, String medicationId, String medicationName, String strength, String form,
             BigDecimal quantity, String unit, LocalDate expirationDate, String notes,
+            // Per-physical-box GS1 facts (AI 10 / AI 21), decoded fresh on each scan.
+            String batch, String serialNumber,
             boolean lowStock, ExpiryStatus expiryStatus) {}
 
     public record CreateInventoryRequest(
@@ -21,12 +23,16 @@ public final class InventoryDtos {
             @NotNull @DecimalMin("0.0") BigDecimal quantity,
             @Size(max = 20) String unit,
             LocalDate expirationDate,
+            @Size(max = 64) String batch,
+            @Size(max = 64) String serialNumber,
             String notes) {}
 
     public record UpdateInventoryRequest(
             @DecimalMin("0.0") BigDecimal quantity,
             @Size(max = 20) String unit,
             LocalDate expirationDate,
+            @Size(max = 64) String batch,
+            @Size(max = 64) String serialNumber,
             String notes) {}
 
     private InventoryDtos() {}

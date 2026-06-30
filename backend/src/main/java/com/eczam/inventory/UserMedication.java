@@ -15,7 +15,8 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "user_medications",
-       uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "medication_id", "expiration_date"}))
+       uniqueConstraints = @UniqueConstraint(
+               columnNames = {"user_id", "medication_id", "batch", "serial_number", "expiration_date"}))
 @Getter @Setter @NoArgsConstructor
 public class UserMedication {
 
@@ -35,6 +36,15 @@ public class UserMedication {
     @Column(nullable = false)
     private String unit = "pill";
 
+    /** GS1 AI 10 (lot) — per-physical-box, decoded fresh on each scan, never from the catalog. */
+    @Column(name = "batch")
+    private String batch;
+
+    /** GS1 AI 21 (serial) — per-physical-box. */
+    @Column(name = "serial_number")
+    private String serialNumber;
+
+    /** GS1 AI 17 (expiry) — per-physical-box. */
     @Column(name = "expiration_date")
     private LocalDate expirationDate;
 

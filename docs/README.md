@@ -1,12 +1,20 @@
 # ECZAM — Documentation
 
-The complete documentation suite for **ECZAM**, a smart medication management PWA.
+The complete documentation suite for **ECZAM**, a smart medication management app.
 Start with the [project brief](../ECZAM_PROJECT_BRIEF.md) (authoritative source of
 truth) and the repo guide [CLAUDE.md](../CLAUDE.md), then read the docs below.
 
-> **Stack:** Spring Boot + PostgreSQL (backend) · React 18 + TypeScript PWA
-> (frontend) · **Compliance:** KVKK (Turkey). See [CLAUDE.md](../CLAUDE.md) for the
-> stack-decision note vs the brief.
+> **Stack:** Spring Boot + PostgreSQL (backend) · **Flutter** (mobile client) ·
+> **Compliance:** KVKK (Turkey). See [CLAUDE.md](../CLAUDE.md) for the
+> stack-decision notes vs the brief.
+>
+> **Migration note:** the frontend was migrated from a React 18 + TypeScript PWA
+> to **Flutter** (see [`plans/flutter-migration-plan.md`](../plans/flutter-migration-plan.md));
+> the archived React app is in `old_frontend_react/`. Many docs below still
+> describe React/PWA specifics (service worker, Vite, Tailwind, Web Push); read
+> those as the **original spec** — the REST contract, DB schema, domain logic,
+> FR/US/UC IDs, and guardrails are unchanged and apply to the Flutter client. Web
+> Push is replaced by on-device local notifications (FCM is a documented gap).
 
 ---
 

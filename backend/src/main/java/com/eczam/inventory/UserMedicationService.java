@@ -39,9 +39,14 @@ public class UserMedicationService {
         UUID medId = UUID.fromString(req.medicationId());
         Medication med = medications.findById(medId)
                 .orElseThrow(() -> ApiException.notFound("Medication not found"));
-        if (repo.existsByUserIdAndMedicationIdAndExpirationDate(userId, medId, req.expirationDate())) {
+        // Per-box model: one physical box = one row. A serial (GS1 AI 21) is
+        // unique to a box, so a re-scan of the same box is the only true
+        // duplicate; boxes that share a product+expiry but differ by batch/serial
+        // are legitimately distinct rows (DB enforces the 5-column UNIQUE).
+        if (req.serialNumber() != null && !req.serialNumber().isBlank()
+                && repo.existsByUserIdAndSerialNumber(userId, req.serialNumber())) {
             throw ApiException.conflict(ErrorCode.INVENTORY_BATCH_EXISTS,
-                    "This medication with the same expiry is already in your inventory");
+                    "This exact box (serial number) is already in your inventory");
         }
         UserMedication um = new UserMedication();
         um.setUserId(userId);
@@ -49,6 +54,8 @@ public class UserMedicationService {
         um.setQuantity(req.quantity());
         if (req.unit() != null) um.setUnit(req.unit());
         um.setExpirationDate(req.expirationDate());
+        um.setBatch(req.batch());
+        um.setSerialNumber(req.serialNumber());
         um.setNotes(req.notes());
         repo.save(um);
         return toItem(um, prefsLow(userId), prefsExpiry(userId));
@@ -60,6 +67,8 @@ public class UserMedicationService {
         if (req.quantity() != null) um.setQuantity(req.quantity());
         if (req.unit() != null) um.setUnit(req.unit());
         if (req.expirationDate() != null) um.setExpirationDate(req.expirationDate());
+        if (req.batch() != null) um.setBatch(req.batch());
+        if (req.serialNumber() != null) um.setSerialNumber(req.serialNumber());
         if (req.notes() != null) um.setNotes(req.notes());
         return toItem(um, prefsLow(userId), prefsExpiry(userId));
     }
@@ -92,7 +101,8 @@ public class UserMedicationService {
         Medication m = um.getMedication();
         return new InventoryItem(um.getId().toString(), m.getId().toString(), m.getName(),
                 m.getStrength(), m.getForm(), um.getQuantity(), um.getUnit(),
-                um.getExpirationDate(), um.getNotes(), lowStock, status);
+                um.getExpirationDate(), um.getNotes(), um.getBatch(), um.getSerialNumber(),
+                lowStock, status);
     }
 
     static ExpiryStatus expiryStatus(LocalDate expiry, int warningDays) {

@@ -1,5 +1,12 @@
 # Phase 6 — PWA & Polish
 
+> **🟢 Frontend = Flutter.** This phase was written for a React **PWA** (service
+> worker, Web App Manifest, Workbox offline, Web Push, Lighthouse). In the Flutter
+> build these become: native install/app icon, the **sqflite mirror cache +
+> outbox** for offline, **`flutter_local_notifications`** for reminders (server
+> push via FCM is a documented gap), and `flutter analyze` + manual a11y/perf
+> passes instead of Lighthouse. See [`flutter-migration-plan.md`](flutter-migration-plan.md).
+
 > **Goal:** make ECZAM an installable, offline-capable PWA; finalize the dashboard;
 > meet WCAG 2.1 AA and the 375px viewport target; and harden the backend (health,
 > security headers, rate limiting).

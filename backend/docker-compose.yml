@@ -1,14 +1,80 @@
+# One-command local environment for the ECZAM backend.
+#
+#   cp .env.example .env      # fill in secrets (JWT_SECRET, AI keys, …)
+#   docker compose up --build # starts Postgres+pgvector and the API on :8080
+#
+# Bring up only the database (e.g. when running the API from your IDE):
+#   docker compose up -d db
+#
+# Optional DB browser at http://localhost:8081 :  docker compose --profile tools up -d adminer
 services:
   db:
     image: pgvector/pgvector:pg16
     container_name: eczam-db
     environment:
-      POSTGRES_DB: eczam
-      POSTGRES_USER: eczam
-      POSTGRES_PASSWORD: eczam
+      POSTGRES_DB: ${DATABASE_NAME:-eczam}
+      POSTGRES_USER: ${DATABASE_USER:-eczam}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-eczam}
     ports:
       - "5432:5432"
     volumes:
       - eczam_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-eczam} -d ${DATABASE_NAME:-eczam}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eczam-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Inside the compose network the DB host is the service name `db`.
+      DATABASE_URL: jdbc:postgresql://db:5432/${DATABASE_NAME:-eczam}
+      DATABASE_USER: ${DATABASE_USER:-eczam}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-eczam}
+      PORT: 8080
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me-dev-secret-change-me-32b}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_EMAIL: ${VAPID_EMAIL:-mailto:admin@eczam.app}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      # Seeding (off by default). Mount ilac.json and set SEED_CATALOG_FILE to enable.
+      SEED_CATALOG: ${SEED_CATALOG:-false}
+      SEED_CATALOG_FILE: ${SEED_CATALOG_FILE:-}
+      SEED_EMBEDDINGS: ${SEED_EMBEDDINGS:-false}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/v1/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+    volumes:
+      # Optional: expose the seed dataset to the container (path from SEED_CATALOG_FILE).
+      - ${SEED_DATA_DIR:-./seed-data}:/seed:ro
+
+  adminer:
+    image: adminer:4
+    container_name: eczam-adminer
+    profiles: ["tools"]
+    depends_on:
+      - db
+    ports:
+      - "8081:8080"
+
 volumes:
   eczam_pgdata:

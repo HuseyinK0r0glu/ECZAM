@@ -1,5 +1,13 @@
 # ECZAM — System Architecture
 
+> **🟢 Frontend = Flutter.** This document predates the React→Flutter migration
+> ([`../plans/flutter-migration-plan.md`](../plans/flutter-migration-plan.md)).
+> Read its React/PWA/Vite/Tailwind/Web-Push specifics (including any ADR on
+> PWA-vs-native) as the original spec; the Flutter client implements the same
+> components and RAG/SSE contract with Provider, Dio, a sqflite mirror cache +
+> outbox, on-device local notifications (server push via FCM is a documented gap),
+> `flutter_tts`, and `mobile_scanner`. Archived React app: `old_frontend_react/`.
+
 > The technical architecture of ECZAM: components, the Spring Boot backend, the React
 > PWA frontend, the scheduler, the AI/RAG subsystem, notifications, cross-cutting
 > concerns, and key decisions.

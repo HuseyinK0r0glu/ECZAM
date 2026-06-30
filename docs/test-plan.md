@@ -1,5 +1,13 @@
 # ECZAM — Test Plan
 
+> **🟢 Frontend = Flutter.** Frontend testing moved from **Vitest/Playwright** to
+> **`flutter test`** (unit + widget tests) and `flutter analyze`; the in-memory
+> `FakeMedicationRepository` is the seam for widget tests. New unit tests cover the
+> envelope parser, the minutes↔`"HH:mm"` mapping, the refresh interceptor, and the
+> sync engine's online/offline branching (fake Dio + in-memory sqflite via
+> `sqflite_common_ffi`). Read React/Vitest specifics below as the original spec.
+> See [`../plans/flutter-migration-plan.md`](../plans/flutter-migration-plan.md).
+
 > The testing strategy: the test pyramid, coverage goals, tooling, specialized tests
 > (RAG, scheduler, barcode, security, KVKK), NFR verification, CI gating, and a
 > requirement→test traceability matrix.

@@ -8,6 +8,7 @@ import com.anthropic.models.messages.RawMessageStreamEvent;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -26,8 +27,6 @@ public class RagService {
         Respond in the same language the user writes in.
         """;
 
-    private static final double MIN_SCORE = 0.30; // grounding threshold
-
     private static final String DECLINE =
             "Bu soruyu ilaç prospektüsünden yanıtlayamıyorum. " +
             "Lütfen eczacınıza veya doktorunuza danışın.";
@@ -37,17 +36,19 @@ public class RagService {
     private final AnthropicClient anthropic;   // null when no API key is configured
     private final String model;
     private final int topK;
+    private final double minScore;             // grounding threshold (retrieval gate)
 
     public RagService(EmbeddingClient embeddings, LeafletChunkRepository chunks,
                       @Value("${ANTHROPIC_API_KEY:}") String apiKey,
                       @Value("${eczam.ai.anthropic-model}") String model,
-                      @Value("${eczam.ai.top-k}") int topK) {
+                      @Value("${eczam.ai.top-k}") int topK,
+                      @Value("${eczam.ai.min-score:0.30}") double minScore) {
         this.embeddings = embeddings; this.chunks = chunks;
         // Build the client only when a key is present so the app boots without AI configured.
         this.anthropic = (apiKey == null || apiKey.isBlank())
                 ? null
                 : AnthropicOkHttpClient.builder().apiKey(apiKey).build();
-        this.model = model; this.topK = topK;
+        this.model = model; this.topK = topK; this.minScore = minScore;
     }
 
     public record Citation(String section) {}
@@ -63,17 +64,20 @@ public class RagService {
             return false;
         }
 
-        float[] qvec = embeddings.embed(question);
-        List<LeafletChunkRepository.Chunk> hits = chunks.search(qvec, medicationId, topK).stream()
-                .filter(c -> c.score() >= MIN_SCORE).toList();
+        // Retrieval gate: keep only passages above the grounding threshold.
+        List<LeafletChunkRepository.Chunk> hits = retrieve(question, medicationId);
 
         if (hits.isEmpty()) {
             onToken.accept(DECLINE);
             return false;
         }
 
-        hits.stream().map(LeafletChunkRepository.Chunk::sectionName).distinct()
-                .forEach(s -> onCitation.accept(new Citation(s)));
+        // Citations in canonical leaflet order (section ordinal 1..5), deduped.
+        citationsOf(hits).forEach(s -> onCitation.accept(new Citation(s)));
+
+        // Caveat the model when any source leaflet was truncated at the dataset's
+        // ~32k character ceiling, so the answer flags possible incompleteness.
+        String caveat = truncationCaveat(anyTruncated(hits));
 
         String context = hits.stream()
                 .map(c -> "[" + c.sectionName() + "]\n" + c.chunkText())
@@ -85,9 +89,9 @@ public class RagService {
 
                 Leaflet passages:
                 %s
-
+                %s
                 Question: %s
-                """.formatted(String.join("\n", history), context, question);
+                """.formatted(String.join("\n", history), context, caveat, question);
 
         MessageCreateParams params = MessageCreateParams.builder()
                 .model(model)                 // "claude-sonnet-4-6"
@@ -103,5 +107,37 @@ public class RagService {
                     .forEach(textDelta -> onToken.accept(textDelta.text()));
         }
         return true;
+    }
+
+    // ── Retrieval / gating (pure, model-independent — unit-tested) ────────────
+
+    /** Embeds the question and returns leaflet chunks above the grounding gate. */
+    List<LeafletChunkRepository.Chunk> retrieve(String question, UUID medicationId) {
+        float[] qvec = embeddings.embed(question);
+        return chunks.search(qvec, medicationId, topK).stream()
+                .filter(c -> c.score() >= minScore)
+                .toList();
+    }
+
+    /** Cited section names in canonical leaflet order (ordinal 1..5), deduped. */
+    static List<String> citationsOf(List<LeafletChunkRepository.Chunk> hits) {
+        return hits.stream()
+                .sorted(Comparator.comparing(
+                        c -> c.sectionOrdinal() == null ? Integer.MAX_VALUE : c.sectionOrdinal()))
+                .map(LeafletChunkRepository.Chunk::sectionName)
+                .distinct()
+                .toList();
+    }
+
+    static boolean anyTruncated(List<LeafletChunkRepository.Chunk> hits) {
+        return hits.stream().anyMatch(LeafletChunkRepository.Chunk::truncated);
+    }
+
+    static String truncationCaveat(boolean truncated) {
+        return truncated
+                ? "\nNote: at least one passage comes from a leaflet that was truncated at "
+                + "the source, so it may be incomplete — say so and suggest confirming with a "
+                + "pharmacist.\n"
+                : "";
     }
 }

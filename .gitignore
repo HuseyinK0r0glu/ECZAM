@@ -8,13 +8,25 @@ target/
 *.class
 **/.mvn/wrapper/maven-wrapper.jar
 
-# --- Frontend (Node / Vite) ---
+# --- Frontend (Node / Vite — archived old_frontend_react) ---
 node_modules/
 dist/
 dist-ssr/
 .vite/
 coverage/
 *.local
+
+# --- Frontend (Flutter) ---
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+**/build/
+*.lcov
+
+# --- Datasets (too large for git) ---
+*.rar
+backend/seed-data/*
+!backend/seed-data/.gitkeep
 
 # --- Logs ---
 *.log

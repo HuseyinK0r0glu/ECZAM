@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #DCD8D1; }
+  @keyframes medspin { 0% { transform: translateY(-10px) rotate(-4deg); } 50% { transform: translateY(-16px) rotate(4deg); } 100% { transform: translateY(-10px) rotate(-4deg); } }
+  @keyframes holoin { from { opacity: 0; transform: translateY(14px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes ledflicker { 0% { opacity: 0.92; } 50% { opacity: 1; } 100% { opacity: 0.92; } }
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #DCD8D1; font-family: -apple-system, system-ui, sans-serif; padding: 48px 24px 64px; box-sizing: border-box;">
+
+  <div style="max-width: 920px; margin: 0 auto 36px;">
+    <div style="font-family: 'Instrument Serif', serif; font-size: 34px; color: #2A2723;">MedTrack — the 3D Medicine Cabinet</div>
+    <div style="margin-top: 10px; font-size: 13.5px; line-height: 1.65; color: #5B564E; max-width: 640px;">
+      Home screen as a first-person view into a matte-white polymer cabinet with warm LED shelf lighting. Meds are volumetric objects, not list rows — hover (or press) lifts them with a teal focus glow; tapping zooms the camera onto the object and opens a holographic action panel. The shelf-composition switcher regroups objects live (<b>By type</b> vs <b>By time of day</b>) — the bottles glide between shelves. Bottom nav: History · brass + · Today's Schedule.
+    </div>
+  </div>
+
+  <div style="display: flex; justify-content: center;">
+    <x-import component="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+      <div style="position: absolute; inset: 0; background: linear-gradient(180deg, #EAE4DA 0%, #E0D8CB 55%, #CFC5B4 100%); overflow: hidden;">
+
+        <!-- ════ HOME: THE CABINET ════ -->
+        <sc-if value="{{ showHome }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="Cabinet Home" style="position: absolute; inset: 0;">
+
+          <!-- shelf composition switcher -->
+          <div style="position: absolute; top: 101px; left: 0; right: 0; display: flex; justify-content: center; z-index: 5;">
+            <div style="display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(10px); box-shadow: 0 2px 8px rgba(64, 54, 38, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.8);">
+              <div onClick="{{ setMode.type }}" style="padding: 6px 14px; border-radius: 999px; font-size: 11.5px; font-weight: 600; color: {{ typeColor }}; background: {{ typeBg }}; cursor: pointer; transition: background 0.25s, color 0.25s;">By type</div>
+              <div onClick="{{ setMode.time }}" style="padding: 6px 14px; border-radius: 999px; font-size: 11.5px; font-weight: 600; color: {{ timeColor }}; background: {{ timeBg }}; cursor: pointer; transition: background 0.25s, color 0.25s;">By time of day</div>
+            </div>
+          </div>
+
+          <!-- camera-transformed cabinet -->
+          <div style="position: absolute; top: 136px; left: 16px; right: 16px; height: 586px; transition: transform 0.85s cubic-bezier(0.22, 1, 0.3, 1), transform-origin 0.85s cubic-bezier(0.22, 1, 0.3, 1); transform-origin: {{ camOrigin }}; transform: {{ camTransform }};">
+
+            <!-- cabinet outer frame: matte white polymer -->
+            <div style="position: absolute; inset: 0; border-radius: 20px; background: linear-gradient(180deg, #FBFAF7, #EFECE6 60%, #E6E2DA); box-shadow: 0 28px 60px -18px rgba(64, 54, 38, 0.45), 0 4px 14px rgba(64, 54, 38, 0.18), inset 0 1px 0 rgba(255,255,255,0.9); padding: 11px; box-sizing: border-box;">
+              <div style="position: relative; height: 100%; border-radius: 12px; overflow: hidden; background: #F1EDE5; box-shadow: inset 0 2px 10px rgba(60, 50, 35, 0.22);">
+
+                <!-- compartment 1 -->
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 188px;">
+                  <div style="position: absolute; inset: 0; background: linear-gradient(180deg, #E8E2D6 0%, #F3EFE7 40%, #F7F4EE 100%); box-shadow: inset 16px 0 26px -16px rgba(70, 58, 40, 0.3), inset -16px 0 26px -16px rgba(70, 58, 40, 0.3);"></div>
+                  <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, rgba(255,233,196,0) 4%, #FFE9C4 30%, #FFF3DC 50%, #FFE9C4 70%, rgba(255,233,196,0) 96%); box-shadow: 0 0 12px 2px rgba(255, 214, 150, 0.8); animation: ledflicker 3.4s ease-in-out infinite;"></div>
+                  <div style="position: absolute; top: 0; left: 0; right: 0; height: 64px; background: linear-gradient(180deg, rgba(255, 234, 196, 0.55), rgba(255, 234, 196, 0));"></div>
+                  <div style="position: absolute; bottom: 22px; left: 0; right: 0; height: 16px; background: linear-gradient(180deg, #FDFCF9, #EDE9E0); clip-path: polygon(2.5% 0, 97.5% 0, 100% 100%, 0 100%);"></div>
+                  <div style="position: absolute; bottom: 12px; left: 0; right: 0; height: 10px; background: linear-gradient(180deg, #F6F3EC, #DCD6CA);"></div>
+                  <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 12px; background: linear-gradient(180deg, rgba(60, 50, 35, 0.28), rgba(60, 50, 35, 0.05));"></div>
+                </div>
+
+                <!-- compartment 2 -->
+                <div style="position: absolute; top: 188px; left: 0; right: 0; height: 188px;">
+                  <div style="position: absolute; inset: 0; background: linear-gradient(180deg, #E8E2D6 0%, #F3EFE7 40%, #F7F4EE 100%); box-shadow: inset 16px 0 26px -16px rgba(70, 58, 40, 0.3), inset -16px 0 26px -16px rgba(70, 58, 40, 0.3);"></div>
+                  <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, rgba(255,233,196,0) 4%, #FFE9C4 30%, #FFF3DC 50%, #FFE9C4 70%, rgba(255,233,196,0) 96%); box-shadow: 0 0 12px 2px rgba(255, 214, 150, 0.8); animation: ledflicker 3.4s ease-in-out infinite 0.6s;"></div>
+                  <div style="position: absolute; top: 0; left: 0; right: 0; height: 64px; background: linear-gradient(180deg, rgba(255, 234, 196, 0.55), rgba(255, 234, 196, 0));"></div>
+                  <div style="position: absolute; bottom: 22px; left: 0; right: 0; height: 16px; background: linear-gradient(180deg, #FDFCF9, #EDE9E0); clip-path: polygon(2.5% 0, 97.5% 0, 100% 100%, 0 100%);"></div>
+                  <div style="position: absolute; bottom: 12px; left: 0; right: 0; height: 10px; background: linear-gradient(180deg, #F6F3EC, #DCD6CA);"></div>
+                  <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 12px; background: linear-gradient(180deg, rgba(60, 50, 35, 0.28), rgba(60, 50, 35, 0.05));"></div>
+                </div>
+
+                <!-- compartment 3 -->
+                <div style="position: absolute; top: 376px; left: 0; right: 0; height: 188px;">
+                  <div style="position: absolute; inset: 0; background: linear-gradient(180deg, #E8E2D6 0%, #F3EFE7 40%, #F7F4EE 100%); box-shadow: inset 16px 0 26px -16px rgba(70, 58, 40, 0.3), inset -16px 0 26px -16px rgba(70, 58, 40, 0.3);"></div>
+                  <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, rgba(255,233,196,0) 4%, #FFE9C4 30%, #FFF3DC 50%, #FFE9C4 70%, rgba(255,233,196,0) 96%); box-shadow: 0 0 12px 2px rgba(255, 214, 150, 0.8); animation: ledflicker 3.4s ease-in-out infinite 1.1s;"></div>
+                  <div style="position: absolute; top: 0; left: 0; right: 0; height: 64px; background: linear-gradient(180deg, rgba(255, 234, 196, 0.55), rgba(255, 234, 196, 0));"></div>
+                  <div style="position: absolute; bottom: 22px; left: 0; right: 0; height: 16px; background: linear-gradient(180deg, #FDFCF9, #EDE9E0); clip-path: polygon(2.5% 0, 97.5% 0, 100% 100%, 0 100%);"></div>
+                  <div style="position: absolute; bottom: 12px; left: 0; right: 0; height: 10px; background: linear-gradient(180deg, #F6F3EC, #DCD6CA);"></div>
+                </div>
+
+                <!-- shelf labels -->
+                <div style="position: absolute; top: 10px; left: 14px; font-size: 9px; letter-spacing: 1.6px; text-transform: uppercase; color: rgba(90, 76, 55, 0.55); font-weight: 600;">{{ label1 }}</div>
+                <div style="position: absolute; top: 198px; left: 14px; font-size: 9px; letter-spacing: 1.6px; text-transform: uppercase; color: rgba(90, 76, 55, 0.55); font-weight: 600;">{{ label2 }}</div>
+                <div style="position: absolute; top: 386px; left: 14px; font-size: 9px; letter-spacing: 1.6px; text-transform: uppercase; color: rgba(90, 76, 55, 0.55); font-weight: 600;">{{ label3 }}</div>
+
+                <!-- ── MEDS LAYER ── -->
+                <div style="position: absolute; inset: 0;">
+
+                  <!-- Omega-3 jar -->
+                  <div onClick="{{ openMed.omega }}" style="position: absolute; left: 26px; top: 74px; width: 78px; height: 84px; transform: {{ shift.omega }}; transition: transform 0.8s cubic-bezier(0.22, 1, 0.3, 1); cursor: pointer; z-index: 3;">
+                    <div style="position: absolute; left: 50%; bottom: -6px; width: 88px; height: 13px; transform: translateX(-50%); background: radial-gradient(ellipse, rgba(50, 40, 22, 0.38), rgba(50, 40, 22, 0) 68%);"></div>
+                    <div style="position: relative; width: 100%; height: 100%; animation: {{ anim.omega }}; transition: transform 0.25s, filter 0.25s;" style-hover="transform: translateY(-7px); filter: drop-shadow(0 0 9px rgba(45, 212, 207, 0.85));">
+                      <div style="position: absolute; top: 0; left: 9px; right: 9px; height: 18px; border-radius: 6px 6px 2px 2px; background: linear-gradient(180deg, #FFFFFF, #E2DFD7 70%, #D2CEC4); box-shadow: inset 0 -2px 3px rgba(0,0,0,0.13), inset 0 1px 0 rgba(255,255,255,0.95);"></div>
+                      <div style="position: absolute; top: 15px; left: 0; right: 0; bottom: 0; border-radius: 10px; border: 1px solid rgba(140, 120, 80, 0.3); box-sizing: border-box; background-image: linear-gradient(105deg, rgba(255,255,255,0.6) 6%, rgba(255,255,255,0) 28%), radial-gradient(16px 20px at 22% 82%, #EFA92E 58%, rgba(239,169,46,0) 60%), radial-gradient(15px 19px at 52% 86%, #F5BC4C 58%, rgba(245,188,76,0) 60%), radial-gradient(16px 20px at 80% 80%, #E8A026 58%, rgba(232,160,38,0) 60%), radial-gradient(14px 18px at 36% 64%, #F2B23C 58%, rgba(242,178,60,0) 60%), radial-gradient(14px 18px at 68% 62%, #EDA830 58%, rgba(237,168,48,0) 60%), radial-gradient(13px 16px at 50% 46%, #F6C055 58%, rgba(246,192,85,0) 60%); background-color: rgba(248, 230, 192, 0.55); box-shadow: inset 0 2px 6px rgba(255, 248, 230, 0.7), inset 0 -4px 8px rgba(120, 85, 20, 0.25);"></div>
+                      <div style="position: absolute; top: 36px; left: 4px; right: 4px; height: 30px; border-radius: 3px; background: linear-gradient(90deg, #E9E4D8, #FDFCF8 40%, #E7E2D5); box-shadow: 0 1px 2px rgba(60, 30, 0, 0.25); text-align: center; padding-top: 3px; box-sizing: border-box;">
+                        <div style="font-size: 7.5px; font-weight: 700; color: #2E2A22;">Omega-3</div>
+                        <div style="font-size: 6.5px; font-weight: 600; color: #7A7263;">Fish Oil 1000 mg</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Ibuprofen amber bottle -->
+                  <div onClick="{{ openMed.ibu }}" style="position: absolute; left: 128px; top: 66px; width: 56px; height: 92px; transform: {{ shift.ibu }}; transition: transform 0.8s cubic-bezier(0.22, 1, 0.3, 1); cursor: pointer; z-index: 3;">
+                    <div style="position: absolute; left: 50%; bottom: -6px; width: 66px; height: 12px; transform: translateX(-50%); background: radial-gradient(ellipse, rgba(50, 40, 22, 0.38), rgba(50, 40, 22, 0) 68%);"></div>
+                    <div style="position: relative; width: 100%; height: 100%; animation: {{ anim.ibu }}; transition: transform 0.25s, filter 0.25s;" style-hover="transform: translateY(-7px); filter: drop-shadow(0 0 9px rgba(45, 212, 207, 0.85));">
+                      <div style="position: absolute; top: 0; left: 7px; width: 42px; height: 17px; border-radius: 4px 4px 2px 2px; background: linear-gradient(180deg, #FFFFFF, #E4E1D9 70%, #D6D2C8); box-shadow: inset 0 -2px 3px rgba(0,0,0,0.13), inset 0 1px 0 rgba(255,255,255,0.95);"></div>
+                      <div style="position: absolute; top: 15px; left: 0; right: 0; bottom: 0; border-radius: 7px 7px 9px 9px; background: linear-gradient(90deg, #7C440C, #C8801C 20%, #F0AE48 45%, #D08A22 70%, #6E3B09); box-shadow: inset 0 3px 4px rgba(255, 220, 160, 0.5), inset 0 -4px 6px rgba(60, 30, 0, 0.45);"></div>
+                      <div style="position: absolute; top: 36px; left: 5px; right: 5px; height: 44px; border-radius: 3px; background: linear-gradient(90deg, #E9E4D8, #FDFCF8 40%, #E7E2D5); box-shadow: 0 1px 2px rgba(60, 30, 0, 0.3); padding: 4px 3px 0; box-sizing: border-box; text-align: center;">
+                        <div style="height: 5px; background: #1FB6AF; border-radius: 1px; margin: 0 2px 3px;"></div>
+                        <div style="font-size: 7.5px; font-weight: 700; color: #2E2A22;">Ibuprofen</div>
+                        <div style="font-size: 7px; font-weight: 600; color: #7A7263;">400 mg</div>
+                        <div style="font-size: 5px; color: #A39A88; margin-top: 2px; letter-spacing: 0.3px;">30 TABLETS</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Loratadine blister pack, leaning -->
+                  <div onClick="{{ openMed.lora }}" style="position: absolute; left: 232px; top: 72px; width: 74px; height: 86px; transform: {{ shift.lora }}; transition: transform 0.8s cubic-bezier(0.22, 1, 0.3, 1); cursor: pointer; z-index: 2;">
+                    <div style="position: absolute; left: 50%; bottom: -5px; width: 80px; height: 11px; transform: translateX(-50%); background: radial-gradient(ellipse, rgba(50, 40, 22, 0.32), rgba(50, 40, 22, 0) 68%);"></div>
+                    <div style="position: relative; width: 100%; height: 100%; animation: {{ anim.lora }}; transition: transform 0.25s, filter 0.25s;" style-hover="transform: translateY(-7px); filter: drop-shadow(0 0 9px rgba(45, 212, 207, 0.85));">
+                      <div style="position: absolute; inset: 0; transform: rotate(-7deg); transform-origin: 50% 92%;">
+                        <div style="position: absolute; inset: 0; border-radius: 6px; background: linear-gradient(155deg, #F4F6F9, #C9CDD5 55%, #E8EAEF); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 3px rgba(60, 50, 30, 0.3);"></div>
+                        <div style="position: absolute; top: 7px; left: 9px; right: 9px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px;">
+                          <sc-for list="{{ blisterCells }}" as="b" hint-placeholder-count="9">
+                            <div style="width: 14px; height: 14px; border-radius: 999px; justify-self: center; background: radial-gradient(circle at 38% 32%, #FFFFFF, #DDE0E5 55%, #A9AEB8); box-shadow: inset 0 -1px 2px rgba(0,0,0,0.2), 0 1px 1px rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center;">
+                              <div style="width: 7px; height: 7px; border-radius: 999px; background: radial-gradient(circle at 40% 35%, #FFFFFF, #E8E6E0 70%);"></div>
+                            </div>
+                          </sc-for>
+                        </div>
+                        <div style="position: absolute; bottom: 5px; left: 6px; right: 6px; text-align: center;">
+                          <div style="font-size: 7px; font-weight: 700; color: #3A3F49;">Loratadine</div>
+                          <div style="font-size: 6px; font-weight: 600; color: #7C828D;">10 mg · 9 tablets</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Amoxicillin white pharmacy bottle -->
+                  <div onClick="{{ openMed.amox }}" style="position: absolute; left: 34px; top: 246px; width: 58px; height: 100px; transform: {{ shift.amox }}; transition: transform 0.8s cubic-bezier(0.22, 1, 0.3, 1); cursor: pointer; z-index: 3;">
+                    <div style="position: absolute; left: 50%; bottom: -6px; width: 68px; height: 12px; transform: translateX(-50%); background: radial-gradient(ellipse, rgba(50, 40, 22, 0.38), rgba(50, 40, 22, 0) 68%);"></div>
+                    <div style="position: relative; width: 100%; height: 100%; animation: {{ anim.amox }}; transition: transform 0.25s, filter 0.25s;" style-hover="transform: translateY(-7px); filter: drop-shadow(0 0 9px rgba(45, 212, 207, 0.85));">
+                      <div style="position: absolute; top: 0; left: 8px; width: 42px; height: 18px; border-radius: 4px 4px 2px 2px; background: linear-gradient(180deg, #FFFFFF, #E8E5DE 65%, #D8D4CA); box-shadow: inset 0 -2px 3px rgba(0,0,0,0.13), inset 0 1px 0 rgba(255,255,255,0.95);"></div>
+                      <div style="position: absolute; top: 16px; left: 0; right: 0; bottom: 0; border-radius: 8px 8px 10px 10px; background: linear-gradient(90deg, #CFCBC1, #FBFAF6 35%, #FFFFFF 50%, #EFEDE6 70%, #C5C1B6); box-shadow: inset 0 3px 4px rgba(255, 255, 255, 0.9), inset 0 -4px 6px rgba(90, 80, 60, 0.3);"></div>
+                      <div style="position: absolute; top: 38px; left: 5px; right: 5px; height: 50px; border-radius: 3px; background: #FDFCF8; box-shadow: 0 1px 2px rgba(60, 30, 0, 0.22); padding: 4px 3px 0; box-sizing: border-box; text-align: center;">
+                        <div style="height: 5px; background: #D8483A; border-radius: 1px; margin: 0 2px 3px;"></div>
+                        <div style="font-size: 7px; font-weight: 700; color: #2E2A22;">Amoxicillin</div>
+                        <div style="font-size: 6.5px; font-weight: 600; color: #7A7263;">500 mg</div>
+                        <div style="width: 16px; height: 7px; border-radius: 999px; background: linear-gradient(90deg, #D8483A 50%, #F2C14E 50%); margin: 3px auto 0; box-shadow: 0 1px 1px rgba(0,0,0,0.2);"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Albuterol inhaler -->
+                  <div onClick="{{ openMed.inhaler }}" style="position: absolute; left: 140px; top: 258px; width: 58px; height: 88px; transform: {{ shift.inhaler }}; transition: transform 0.8s cubic-bezier(0.22, 1, 0.3, 1); cursor: pointer; z-index: 3;">
+                    <div style="position: absolute; left: 50%; bottom: -5px; width: 64px; height: 11px; transform: translateX(-50%); background: radial-gradient(ellipse, rgba(50, 40, 22, 0.38), rgba(50, 40, 22, 0) 68%);"></div>
+                    <div style="position: relative; width: 100%; height: 100%; animation: {{ anim.inhaler }}; transition: transform 0.25s, filter 0.25s;" style-hover="transform: translateY(-7px); filter: drop-shadow(0 0 9px rgba(45, 212, 207, 0.85));">
+                      <div style="position: absolute; top: 0; left: 26px; width: 16px; height: 13px; border-radius: 3px 3px 0 0; background: linear-gradient(90deg, #9CA1A9, #E8EAEE 45%, #B3B8C0); box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);"></div>
+                      <div style="position: absolute; top: 10px; left: 19px; width: 30px; height: 62px; border-radius: 8px 8px 3px 3px; background: linear-gradient(90deg, #163E80, #3F7BD0 40%, #5B96E8 52%, #2A62B8 72%, #122F66); box-shadow: inset 0 2px 3px rgba(180, 215, 255, 0.5), inset 0 -3px 5px rgba(8, 25, 60, 0.5);"></div>
+                      <div style="position: absolute; top: 24px; left: 26px; width: 16px; height: 34px; border-radius: 2px; background: rgba(248, 250, 252, 0.92); text-align: center; writing-mode: vertical-rl; font-size: 6px; font-weight: 700; color: #1D4FA0; letter-spacing: 0.3px; display: flex; align-items: center; justify-content: center;">Albuterol</div>
+                      <div style="position: absolute; top: 68px; left: 2px; width: 47px; height: 20px; border-radius: 7px 3px 4px 9px; background: linear-gradient(180deg, #4D86DC, #2A62B8 55%, #1A4690); box-shadow: inset 0 1px 2px rgba(180, 215, 255, 0.45), inset 0 -2px 3px rgba(8, 25, 60, 0.5);"></div>
+                      <div style="position: absolute; top: 72px; left: 4px; width: 6px; height: 12px; border-radius: 999px; background: #0B2350;"></div>
+                    </div>
+                  </div>
+
+                  <!-- Cough syrup glass bottle + measuring cup -->
+                  <div onClick="{{ openMed.syrup }}" style="position: absolute; left: 240px; top: 228px; width: 62px; height: 118px; transform: {{ shift.syrup }}; transition: transform 0.8s cubic-bezier(0.22, 1, 0.3, 1); cursor: pointer; z-index: 3;">
+                    <div style="position: absolute; left: 50%; bottom: -6px; width: 72px; height: 12px; transform: translateX(-50%); background: radial-gradient(ellipse, rgba(50, 40, 22, 0.4), rgba(50, 40, 22, 0) 68%);"></div>
+                    <div style="position: relative; width: 100%; height: 100%; animation: {{ anim.syrup }}; transition: transform 0.25s, filter 0.25s;" style-hover="transform: translateY(-7px); filter: drop-shadow(0 0 9px rgba(45, 212, 207, 0.85));">
+                      <div style="position: absolute; top: 0; left: 12px; width: 38px; height: 16px; clip-path: polygon(10% 100%, 90% 100%, 100% 0, 0 0); background: linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(235, 240, 240, 0.45)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);"></div>
+                      <div style="position: absolute; top: 14px; left: 19px; width: 24px; height: 12px; border-radius: 2px; background: linear-gradient(90deg, #0F1012, #34373B 45%, #1A1C1F);"></div>
+                      <div style="position: absolute; top: 24px; left: 0; right: 0; bottom: 0; border-radius: 6px 6px 8px 8px; background: linear-gradient(90deg, #190C02, #4A2406 22%, #7A4612 45%, #5C2E08 68%, #140A02); box-shadow: inset 0 3px 5px rgba(160, 100, 40, 0.4), inset 0 -5px 7px rgba(0, 0, 0, 0.55);"></div>
+                      <div style="position: absolute; top: 30px; left: 7px; width: 6px; height: 76px; border-radius: 999px; background: linear-gradient(180deg, rgba(255, 235, 200, 0.35), rgba(255, 235, 200, 0.08));"></div>
+                      <div style="position: absolute; top: 54px; left: 6px; right: 6px; height: 48px; border-radius: 3px; background: linear-gradient(90deg, #EFE7D2, #FAF5E8 45%, #EDE5CF); box-shadow: 0 1px 2px rgba(0,0,0,0.35); padding: 5px 3px 0; box-sizing: border-box; text-align: center;">
+                        <div style="font-size: 7px; font-weight: 700; color: #4A2D10; letter-spacing: 0.2px;">Dry Cough</div>
+                        <div style="font-size: 8px; font-weight: 800; color: #2E1C08; font-style: italic;">SYRUP</div>
+                        <div style="height: 1px; background: #C9B88E; margin: 3px 6px;"></div>
+                        <div style="font-size: 6px; font-weight: 600; color: #8A7350;">250 ml</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Hydrocortisone tube, lying down -->
+                  <div onClick="{{ openMed.cream }}" style="position: absolute; left: 96px; top: 498px; width: 104px; height: 36px; transform: {{ shift.cream }}; transition: transform 0.8s cubic-bezier(0.22, 1, 0.3, 1); cursor: pointer; z-index: 3;">
+                    <div style="position: absolute; left: 50%; bottom: -4px; width: 110px; height: 10px; transform: translateX(-50%); background: radial-gradient(ellipse, rgba(50, 40, 22, 0.36), rgba(50, 40, 22, 0) 70%);"></div>
+                    <div style="position: relative; width: 100%; height: 100%; animation: {{ anim.cream }}; transition: transform 0.25s, filter 0.25s;" style-hover="transform: translateY(-6px); filter: drop-shadow(0 0 9px rgba(45, 212, 207, 0.85));">
+                      <div style="position: absolute; inset: 0; transform: rotate(-2deg);">
+                        <div style="position: absolute; top: 6px; left: 0; width: 15px; height: 24px; border-radius: 3px; background: linear-gradient(180deg, #FBFCFD, #C7CBD1 55%, #969CA6); box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);"></div>
+                        <div style="position: absolute; top: 3px; left: 13px; right: 9px; bottom: 3px; border-radius: 4px 2px 2px 4px; background: linear-gradient(180deg, #F6F7F9, #D8DBE0 42%, #A6ACB5 80%, #C9CDD4); box-shadow: inset 0 1px 1px rgba(255,255,255,0.85), inset 0 -2px 3px rgba(40, 45, 55, 0.3); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;">
+                          <div style="font-size: 7px; font-weight: 700; color: #2E3138;">Hydrocortisone</div>
+                          <div style="font-size: 6px; font-weight: 600; color: #1FB6AF;">CREAM 1% · 30 g</div>
+                        </div>
+                        <div style="position: absolute; top: 2px; right: 0; width: 10px; height: 32px; border-radius: 1px; background: repeating-linear-gradient(90deg, #B9BEC6 0 2px, #E6E8EC 2px 4px); box-shadow: inset 0 0 2px rgba(40, 45, 55, 0.4);"></div>
+                      </div>
+                    </div>
+                  </div>
+
+
+                  <!-- user-added meds -->
+                  <sc-for list="{{ customMeds }}" as="m" hint-placeholder-count="0">
+                    <div onClick="{{ m.onTap }}" style="position: absolute; left: {{ m.x }}px; top: {{ m.top }}px; width: {{ m.w }}px; height: {{ m.h }}px; transform: {{ m.shift }}; transition: transform 0.8s cubic-bezier(0.22, 1, 0.3, 1); cursor: pointer; z-index: 3;">
+                      <div style="position: absolute; left: 50%; bottom: -6px; width: 64px; height: 12px; transform: translateX(-50%); background: radial-gradient(ellipse, rgba(50, 40, 22, 0.38), rgba(50, 40, 22, 0) 68%);"></div>
+                      <div style="position: relative; width: 100%; height: 100%; animation: {{ m.anim }}; transition: transform 0.25s, filter 0.25s;" style-hover="transform: translateY(-7px); filter: drop-shadow(0 0 9px rgba(45, 212, 207, 0.85));">
+                        <div style="display: {{ m.capDisplay }}; position: absolute; top: 0; left: {{ m.capLeft }}px; width: {{ m.capW }}px; height: 16px; border-radius: 4px 4px 2px 2px; background: linear-gradient(180deg, #FFFFFF, #E4E1D9 70%, #D6D2C8); box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.95);"></div>
+                        <div style="position: absolute; top: {{ m.bodyTop }}px; left: 0; right: 0; bottom: 0; border-radius: {{ m.bodyRadius }}; background: {{ m.bodyBg }}; box-shadow: inset 0 3px 4px rgba(255, 255, 255, 0.35), inset 0 -4px 6px rgba(60, 40, 10, 0.35);"></div>
+                        <div style="position: absolute; top: {{ m.labelTop }}px; left: 4px; right: 4px; height: {{ m.labelH }}px; border-radius: 3px; background: linear-gradient(90deg, #E9E4D8, #FDFCF8 40%, #E7E2D5); box-shadow: 0 1px 2px rgba(60, 30, 0, 0.3); padding: 2px 2px 0; box-sizing: border-box; text-align: center; overflow: hidden;">
+                          <x-import component-from-global-scope="image-slot" from="./image-slot.js" id="{{ m.slotId }}" placeholder="photo" radius="2" hint-size="100%,22px" style="display: block; width: 100%; height: 22px;"></x-import>
+                          <div style="font-size: 6.5px; font-weight: 700; color: #2E2A22; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ m.name }}</div>
+                          <div style="font-size: 6px; font-weight: 600; color: #7A7263;">{{ m.dose }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </sc-for>
+
+                </div>
+                <!-- ── /MEDS LAYER ── -->
+
+              </div>
+            </div>
+          </div>
+
+          <!-- dim backdrop while zoomed -->
+          <sc-if value="{{ hasSel }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ closeMed }}" style="position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 42%, rgba(8, 36, 40, 0) 30%, rgba(8, 36, 40, 0.38) 100%); cursor: pointer;"></div>
+          </sc-if>
+
+          <!-- holographic action panel -->
+          <sc-if value="{{ hasSel }}" hint-placeholder-val="{{ false }}">
+            <div style="position: absolute; left: 26px; right: 26px; bottom: 142px; z-index: 8; border-radius: 18px; padding: 16px 16px 14px; background: linear-gradient(165deg, rgba(8, 40, 44, 0.82), rgba(10, 52, 56, 0.72)); backdrop-filter: blur(14px) saturate(150%); border: 1px solid rgba(110, 235, 228, 0.4); box-shadow: 0 0 0 1px rgba(110, 235, 228, 0.12), 0 10px 36px rgba(6, 40, 42, 0.5), inset 0 1px 0 rgba(160, 245, 240, 0.25); animation: holoin 0.45s cubic-bezier(0.2, 1, 0.3, 1) both;">
+              <div style="display: flex; align-items: baseline; justify-content: space-between;">
+                <div style="font-family: 'Instrument Serif', serif; font-size: 23px; color: #EFFFFE;">{{ selName }}</div>
+                <div style="font-size: 13px; font-weight: 700; color: #57E6DE; letter-spacing: 0.4px;">{{ selDose }}</div>
+              </div>
+              <div style="margin-top: 2px; font-size: 11px; color: rgba(190, 235, 232, 0.75); letter-spacing: 0.4px;">{{ selForm }}</div>
+              <div style="margin-top: 12px; display: flex; align-items: center; gap: 10px;">
+                <x-import component-from-global-scope="image-slot" from="./image-slot.js" id="photo-{{ selId }}" placeholder="+" radius="8" hint-size="48px,48px" style="display: block; width: 48px; height: 48px; flex-shrink: 0;"></x-import>
+                <div style="font-size: 11px; line-height: 1.45; color: rgba(190, 235, 232, 0.7);">Drop a photo of the real package here to keep it with this med.</div>
+              </div>
+              <div style="margin-top: 14px; display: flex; gap: 8px;">
+                <div onClick="{{ logDose }}" style="flex: 1.45; height: 44px; border-radius: 12px; background: linear-gradient(180deg, #35D9D1, #17A89F); display: flex; align-items: center; justify-content: center; font-size: 13.5px; font-weight: 700; color: #06302E; cursor: pointer; box-shadow: 0 0 14px rgba(53, 217, 209, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.45);" style-hover="filter: brightness(1.08);">Log Dose</div>
+                <div onClick="{{ closeMed }}" style="flex: 1; height: 44px; border-radius: 12px; border: 1px solid rgba(110, 235, 228, 0.45); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #9FF0EB; cursor: pointer;" style-hover="background: rgba(110, 235, 228, 0.12);">Edit</div>
+                <div onClick="{{ deleteSel }}" style="flex: 1; height: 44px; border-radius: 12px; border: 1px solid rgba(255, 156, 138, 0.45); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #FFB3A3; cursor: pointer;" style-hover="background: rgba(255, 156, 138, 0.12);">Delete</div>
+              </div>
+            </div>
+          </sc-if>
+
+        </div>
+        </sc-if>
+
+        <!-- ════ TODAY'S SCHEDULE ════ -->
+        <sc-if value="{{ showSchedule }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Today's Schedule" style="position: absolute; inset: 0; overflow: auto; padding: 116px 20px 150px; box-sizing: border-box;">
+          <sc-for list="{{ schedSections }}" as="sec" hint-placeholder-count="3">
+            <div style="margin-bottom: 18px;">
+              <div style="display: flex; align-items: baseline; gap: 8px; padding: 0 6px 8px;">
+                <div style="font-size: 11px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #6B6354;">{{ sec.label }}</div>
+                <div style="font-size: 11px; font-weight: 600; color: #A39A88;">{{ sec.time }}</div>
+              </div>
+              <div style="border-radius: 16px; background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(10px); box-shadow: 0 4px 14px rgba(64, 54, 38, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.85); overflow: hidden;">
+                <sc-for list="{{ sec.rows }}" as="r" hint-placeholder-count="2">
+                  <div onClick="{{ r.onTap }}" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; border-bottom: 1px solid rgba(90, 76, 55, 0.08);" style-hover="background: rgba(255, 255, 255, 0.55);">
+                    <div style="width: 10px; height: 26px; border-radius: 3px; background: {{ r.swatch }};"></div>
+                    <div style="flex: 1;">
+                      <div style="font-size: 14px; font-weight: 600; color: #33302A; text-decoration: {{ r.deco }};">{{ r.name }}</div>
+                      <div style="font-size: 11.5px; color: #8A8170; margin-top: 1px;">{{ r.detail }}</div>
+                    </div>
+                    <div style="width: 26px; height: 26px; border-radius: 999px; border: 2px solid {{ r.ringColor }}; background: {{ r.checkBg }}; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #06302E; font-weight: 800; transition: border-color 0.2s, background 0.2s; box-sizing: border-box;">{{ r.tick }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        </sc-if>
+
+        <!-- ════ HISTORY ════ -->
+        <sc-if value="{{ showHistory }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="History" style="position: absolute; inset: 0; overflow: auto; padding: 116px 20px 150px; box-sizing: border-box;">
+          <div style="display: flex; gap: 6px; justify-content: space-between; margin-bottom: 16px;">
+            <sc-for list="{{ histDays }}" as="d" hint-placeholder-count="7">
+              <div style="flex: 1; border-radius: 14px; padding: 9px 0 8px; text-align: center; background: {{ d.bg }}; box-shadow: 0 2px 8px rgba(64, 54, 38, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8);">
+                <div style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.8px; color: #8A8170;">{{ d.d }}</div>
+                <div style="font-size: 14px; font-weight: 700; color: #33302A; margin: 1px 0 5px;">{{ d.n }}</div>
+                <div style="width: 7px; height: 7px; border-radius: 999px; margin: 0 auto; background: {{ d.dot }};"></div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="border-radius: 16px; padding: 14px 16px; margin-bottom: 18px; background: linear-gradient(165deg, rgba(8, 40, 44, 0.85), rgba(13, 60, 64, 0.78)); box-shadow: 0 8px 24px rgba(6, 40, 42, 0.3); display: flex; align-items: center; gap: 14px;">
+            <div style="font-family: 'Instrument Serif', serif; font-size: 30px; color: #57E6DE;">92%</div>
+            <div style="font-size: 12px; line-height: 1.45; color: rgba(210, 245, 243, 0.85);">adherence this week<br>6 of 7 days fully on track</div>
+          </div>
+          <div style="font-size: 11px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #6B6354; padding: 0 6px 8px;">Recent log</div>
+          <div style="border-radius: 16px; background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(10px); box-shadow: 0 4px 14px rgba(64, 54, 38, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.85); overflow: hidden;">
+            <sc-for list="{{ histLog }}" as="e" hint-placeholder-count="5">
+              <div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid rgba(90, 76, 55, 0.08);">
+                <div style="flex: 1;">
+                  <div style="font-size: 13.5px; font-weight: 600; color: #33302A;">{{ e.name }}</div>
+                  <div style="font-size: 11px; color: #8A8170; margin-top: 1px;">{{ e.time }}</div>
+                </div>
+                <div style="font-size: 11px; font-weight: 700; color: {{ e.color }};">{{ e.status }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ════ TOP BAR ════ -->
+        <div style="position: absolute; top: 0; left: 0; right: 0; padding: 58px 20px 14px; display: flex; align-items: center; justify-content: space-between; background: linear-gradient(180deg, rgba(234, 228, 218, 0.95) 55%, rgba(234, 228, 218, 0)); z-index: 6;">
+          <div style="font-family: 'Instrument Serif', serif; font-size: 27px; color: #33302A; letter-spacing: 0.2px;">{{ screenTitle }}</div>
+          <div style="width: 40px; height: 40px; border-radius: 999px; backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.55); box-shadow: 0 2px 8px rgba(64, 54, 38, 0.14), inset 0 1px 0 rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; cursor: pointer;" style-hover="background: rgba(255,255,255,0.8);">
+            <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="6.5" fill="none" stroke="#6B6354" stroke-width="2"></circle><circle cx="9" cy="9" r="2.2" fill="#6B6354"></circle></svg>
+          </div>
+        </div>
+
+        <!-- ════ BOTTOM NAV ════ -->
+        <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 18px 0 44px; display: flex; align-items: center; justify-content: center; gap: 30px; background: linear-gradient(0deg, rgba(202, 190, 170, 0.9) 30%, rgba(202, 190, 170, 0)); z-index: 7;">
+          <div onClick="{{ nav.history }}" style="width: 52px; height: 52px; border-radius: 999px; backdrop-filter: blur(12px) saturate(160%); background: {{ historyBg }}; box-shadow: 0 4px 14px rgba(64, 54, 38, 0.22), inset 0 1px 0 rgba(255,255,255,0.75); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s;" style-hover="transform: translateY(-3px);">
+            <svg width="20" height="20" viewBox="0 0 20 20"><rect x="2" y="3.5" width="16" height="14.5" rx="3" fill="none" stroke="#5C5446" stroke-width="2"></rect><line x1="2" y1="8.5" x2="18" y2="8.5" stroke="#5C5446" stroke-width="2"></line><line x1="6" y1="1.5" x2="6" y2="5" stroke="#5C5446" stroke-width="2" stroke-linecap="round"></line><line x1="14" y1="1.5" x2="14" y2="5" stroke="#5C5446" stroke-width="2" stroke-linecap="round"></line></svg>
+          </div>
+          <div onClick="{{ openAdd }}" style="width: 74px; height: 74px; border-radius: 999px; background: radial-gradient(circle at 34% 28%, #FBEBC0, #E5B968 38%, #C2913C 66%, #8F6A20 100%); box-shadow: 0 10px 24px -4px rgba(110, 80, 20, 0.55), 0 3px 6px rgba(110, 80, 20, 0.3), inset 0 2px 3px rgba(255, 244, 214, 0.9), inset 0 -3px 6px rgba(90, 60, 10, 0.45); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s;" style-hover="transform: scale(1.06);" style-active="transform: scale(0.96);">
+            <div style="font-size: 38px; font-weight: 300; color: #FFF8E8; line-height: 1; text-shadow: 0 -1px 1px rgba(90, 60, 10, 0.6), 0 1px 1px rgba(255, 250, 230, 0.5); margin-top: -3px;">+</div>
+          </div>
+          <div onClick="{{ nav.schedule }}" style="width: 52px; height: 52px; border-radius: 999px; backdrop-filter: blur(12px) saturate(160%); background: {{ scheduleBg }}; box-shadow: 0 4px 14px rgba(64, 54, 38, 0.22), inset 0 1px 0 rgba(255,255,255,0.75); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s;" style-hover="transform: translateY(-3px);">
+            <svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="#5C5446" stroke-width="2"></circle><line x1="10" y1="5.5" x2="10" y2="10" stroke="#5C5446" stroke-width="2" stroke-linecap="round"></line><line x1="10" y1="10" x2="13.5" y2="12" stroke="#5C5446" stroke-width="2" stroke-linecap="round"></line></svg>
+          </div>
+        </div>
+
+        <!-- ════ ADD MEDICATION SHEET ════ -->
+        <sc-if value="{{ showAdd }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Add Medication" style="position: absolute; inset: 0; z-index: 9;">
+          <div onClick="{{ closeAdd }}" style="position: absolute; inset: 0; background: rgba(30, 26, 18, 0.35); backdrop-filter: blur(3px);"></div>
+          <div style="position: absolute; left: 0; right: 0; bottom: 0; border-radius: 26px 26px 0 0; background: rgba(250, 247, 241, 0.97); backdrop-filter: blur(16px); box-shadow: 0 -12px 40px rgba(40, 32, 18, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.9); padding: 14px 22px 48px; box-sizing: border-box; animation: holoin 0.4s cubic-bezier(0.2, 1, 0.3, 1) both;">
+            <div style="width: 40px; height: 5px; border-radius: 999px; background: rgba(90, 76, 55, 0.25); margin: 0 auto 14px;"></div>
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div style="font-family: 'Instrument Serif', serif; font-size: 24px; color: #33302A;">Add medication</div>
+              <div style="display: flex; gap: 5px;">
+                <div style="width: 7px; height: 7px; border-radius: 999px; background: {{ dot1 }};"></div>
+                <div style="width: 7px; height: 7px; border-radius: 999px; background: {{ dot2 }};"></div>
+                <div style="width: 7px; height: 7px; border-radius: 999px; background: {{ dot3 }};"></div>
+              </div>
+            </div>
+
+            <sc-if value="{{ stepIs1 }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 10px;">
+                <input value="{{ draftName }}" onChange="{{ setDraftName }}" placeholder="Medication name" style="height: 48px; border-radius: 12px; border: 1px solid rgba(90, 76, 55, 0.22); background: #FFFFFF; padding: 0 14px; font-size: 15px; color: #33302A; outline: none; font-family: -apple-system, system-ui, sans-serif; box-sizing: border-box;" style-focus="border-color: #1FB6AF; box-shadow: 0 0 0 3px rgba(31, 182, 175, 0.18);">
+                <input value="{{ draftDose }}" onChange="{{ setDraftDose }}" placeholder="Dosage — e.g. 400 mg" style="height: 48px; border-radius: 12px; border: 1px solid rgba(90, 76, 55, 0.22); background: #FFFFFF; padding: 0 14px; font-size: 15px; color: #33302A; outline: none; font-family: -apple-system, system-ui, sans-serif; box-sizing: border-box;" style-focus="border-color: #1FB6AF; box-shadow: 0 0 0 3px rgba(31, 182, 175, 0.18);">
+                <div style="font-size: 11.5px; color: #8A8170;">Step 1 of 3 — what's going in the cabinet?</div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ stepIs2 }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top: 16px;">
+                <div style="font-size: 11.5px; color: #8A8170; margin-bottom: 10px;">Pick the container — this becomes the 3D object on your shelf.</div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                  <sc-for list="{{ kindOptions }}" as="k" hint-placeholder-count="5">
+                    <div onClick="{{ k.onTap }}" style="border: {{ k.ring }}; background: {{ k.bg }}; border-radius: 14px; padding: 10px 6px 8px; display: flex; flex-direction: column; align-items: center; gap: 7px; cursor: pointer; transition: border-color 0.2s, background 0.2s;">
+                      <div style="height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;">
+                        <div style="display: {{ k.capDisplay }}; width: 16px; height: 7px; border-radius: 2px 2px 1px 1px; background: linear-gradient(180deg, #FFFFFF, #D6D2C8);"></div>
+                        <div style="width: {{ k.miniW }}px; height: {{ k.miniH }}px; border-radius: {{ k.miniRadius }}; background: {{ k.mini }}; box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.4), inset 0 -2px 3px rgba(60, 40, 10, 0.3);"></div>
+                      </div>
+                      <div style="font-size: 9.5px; font-weight: 600; color: #5C5446; text-align: center; line-height: 1.25;">{{ k.label }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ stepIs3 }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top: 16px;">
+                <div style="font-size: 11.5px; color: #8A8170; margin-bottom: 10px;">When is it taken?</div>
+                <div style="display: flex; gap: 8px;">
+                  <sc-for list="{{ timeChips }}" as="t" hint-placeholder-count="3">
+                    <div onClick="{{ t.onTap }}" style="flex: 1; height: 44px; border-radius: 12px; background: {{ t.bg }}; color: {{ t.color }}; border: {{ t.border }}; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.2s; box-sizing: border-box;">{{ t.label }}</div>
+                  </sc-for>
+                </div>
+                <div style="margin-top: 14px; display: flex; gap: 12px; align-items: center;">
+                  <x-import component-from-global-scope="image-slot" from="./image-slot.js" id="{{ draftSlotId }}" placeholder="label photo" radius="10" hint-size="92px,64px" style="display: block; width: 92px; height: 64px; flex-shrink: 0;"></x-import>
+                  <div style="font-size: 11.5px; line-height: 1.5; color: #8A8170;">Optional — drop a photo of the real package. It gets mapped onto the 3D label.</div>
+                </div>
+              </div>
+            </sc-if>
+
+            <div style="margin-top: 18px; display: flex; gap: 8px;">
+              <sc-if value="{{ showBack }}" hint-placeholder-val="{{ false }}">
+                <div onClick="{{ addBack }}" style="flex: 1; height: 48px; border-radius: 12px; border: 1px solid rgba(90, 76, 55, 0.25); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: #5C5446; cursor: pointer; box-sizing: border-box;" style-hover="background: rgba(255, 255, 255, 0.7);">Back</div>
+              </sc-if>
+              <div onClick="{{ addNext }}" style="flex: 2; height: 48px; border-radius: 12px; background: linear-gradient(180deg, #35D9D1, #17A89F); display: flex; align-items: center; justify-content: center; font-size: 14.5px; font-weight: 700; color: #06302E; cursor: pointer; box-shadow: 0 4px 14px rgba(23, 168, 159, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.45);" style-hover="filter: brightness(1.06);">{{ nextLabel }}</div>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+      </div>
+    </x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { screen: 'home', mode: 'type', sel: null, taken: {}, addOpen: false, addStep: 0, draft: { name: '', dose: '', kind: 'amber', times: {}, slotId: '' }, customMeds: [] };
+
+  meds() {
+    return {
+      ibu:     { name: 'Ibuprofen',      dose: '400mg',  form: 'Pills · amber bottle',  w: 56,  h: 92  },
+      amox:    { name: 'Amoxicillin',    dose: '500mg',  form: 'Capsules · white bottle', w: 58, h: 100 },
+      lora:    { name: 'Loratadine',     dose: '10mg',   form: 'Tablets · blister pack', w: 74,  h: 86  },
+      syrup:   { name: 'Dry Cough Syrup', dose: '250ml', form: 'Syrup · glass bottle',  w: 62,  h: 118 },
+      cream:   { name: 'Hydrocortisone', dose: '1%',     form: 'Cream · alu tube',      w: 104, h: 36  },
+      omega:   { name: 'Omega-3',        dose: '1000mg', form: 'Gel caps · jar',        w: 78,  h: 84  },
+      inhaler: { name: 'Albuterol',      dose: '90mcg',  form: 'Inhaler',               w: 58,  h: 88  },
+    };
+  }
+
+  // shelf index (0..2) and left-x per layout mode; markup is placed at the 'type' position
+  positions() {
+    return {
+      type: { omega: { s: 0, x: 26 }, ibu: { s: 0, x: 128 }, lora: { s: 0, x: 232 },
+              amox: { s: 1, x: 34 }, inhaler: { s: 1, x: 140 }, syrup: { s: 1, x: 240 },
+              cream: { s: 2, x: 96 } },
+      time: { ibu: { s: 0, x: 36 }, omega: { s: 0, x: 122 }, amox: { s: 0, x: 236 },
+              lora: { s: 1, x: 70 }, inhaler: { s: 1, x: 196 },
+              syrup: { s: 2, x: 52 }, cream: { s: 2, x: 158 } },
+    };
+  }
+
+  renderVals() {
+    const { screen, mode, sel } = this.state;
+    const meds = this.meds();
+    const pos = this.positions();
+    const COMP = 188, SHELF_W = 348;
+
+    const shift = {}, anim = {}, openMed = {};
+    for (const id of Object.keys(meds)) {
+      const p0 = pos.type[id], p1 = pos[mode][id];
+      shift[id] = 'translate(' + (p1.x - p0.x) + 'px, ' + ((p1.s - p0.s) * COMP) + 'px)';
+      anim[id] = sel === id ? 'medspin 3.6s ease-in-out infinite' : 'none';
+      openMed[id] = () => this.setState({ sel: this.state.sel === id ? null : id });
+    }
+
+    const kindStyles = {
+      amber:   { w: 54, h: 88,  capDisplay: 'block', capLeft: 7,  capW: 40, bodyTop: 15, bodyRadius: '7px 7px 9px 9px', bodyBg: 'linear-gradient(90deg, #7C440C, #C8801C 20%, #F0AE48 45%, #D08A22 70%, #6E3B09)', labelTop: 34, labelH: 48, mini: 'linear-gradient(90deg, #C8801C, #F0AE48 50%, #B06F15)' },
+      white:   { w: 56, h: 94,  capDisplay: 'block', capLeft: 8,  capW: 40, bodyTop: 16, bodyRadius: '8px 8px 10px 10px', bodyBg: 'linear-gradient(90deg, #CFCBC1, #FBFAF6 35%, #FFFFFF 50%, #EFEDE6 70%, #C5C1B6)', labelTop: 36, labelH: 50, mini: 'linear-gradient(90deg, #DDD9CF, #FFFFFF 50%, #D5D1C6)' },
+      syrup:   { w: 56, h: 104, capDisplay: 'block', capLeft: 16, capW: 24, bodyTop: 12, bodyRadius: '6px 6px 8px 8px', bodyBg: 'linear-gradient(90deg, #190C02, #4A2406 22%, #7A4612 45%, #5C2E08 68%, #140A02)', labelTop: 40, labelH: 50, mini: 'linear-gradient(90deg, #2A1505, #7A4612 50%, #1E0F03)' },
+      jar:     { w: 70, h: 78,  capDisplay: 'block', capLeft: 8,  capW: 54, bodyTop: 15, bodyRadius: '10px', bodyBg: 'linear-gradient(90deg, #D6B478, #F8E6C0 45%, #CDAA6E)', labelTop: 32, labelH: 42, mini: 'linear-gradient(90deg, #D6B478, #F8E6C0 50%, #CDAA6E)' },
+      blister: { w: 68, h: 80,  capDisplay: 'none',  capLeft: 0,  capW: 0,  bodyTop: 0,  bodyRadius: '6px', bodyBg: 'linear-gradient(155deg, #F4F6F9, #C9CDD5 55%, #E8EAEF)', labelTop: 26, labelH: 50, mini: 'linear-gradient(155deg, #F4F6F9, #C2C6CE)' },
+    };
+    const kindLabels = { amber: 'Amber pill bottle', white: 'Pharmacy bottle', syrup: 'Syrup bottle', jar: 'Gel-cap jar', blister: 'Blister pack' };
+    const spots = { type: [{ s: 2, x: 18 }, { s: 2, x: 236 }], time: [{ s: 1, x: 276 }, { s: 2, x: 268 }] };
+    const customList = this.state.customMeds.slice(0, 2);
+    const customMeds = customList.map((cm, i) => {
+      const ks = kindStyles[cm.kind] || kindStyles.amber;
+      const p0 = spots.type[i], p1 = spots[mode][i];
+      return Object.assign({}, cm, ks, {
+        x: p0.x, top: p0.s * COMP + 158 - ks.h,
+        shift: 'translate(' + (p1.x - p0.x) + 'px, ' + ((p1.s - p0.s) * COMP) + 'px)',
+        anim: sel === cm.id ? 'medspin 3.6s ease-in-out infinite' : 'none',
+        onTap: () => this.setState({ sel: this.state.sel === cm.id ? null : cm.id }),
+      });
+    });
+
+    let camTransform = 'none', camOrigin = '50% 50%';
+    if (sel) {
+      let p = pos[mode][sel] ? { x: pos[mode][sel].x, s: pos[mode][sel].s, w: meds[sel].w, h: meds[sel].h } : null;
+      if (!p) {
+        const ci = customList.findIndex(c => c.id === sel);
+        if (ci >= 0) { const ks = kindStyles[customList[ci].kind] || kindStyles.amber; p = { x: spots[mode][ci].x, s: spots[mode][ci].s, w: ks.w, h: ks.h }; }
+      }
+      if (p) {
+        camOrigin = (p.x + p.w / 2 + 11) + 'px ' + (p.s * COMP + 158 - p.h / 2 + 11) + 'px';
+        camTransform = 'scale(2.05) translateY(14px)';
+      }
+    }
+
+    const draft = this.state.draft;
+    const kindOptions = Object.keys(kindLabels).map(k => ({
+      label: kindLabels[k], mini: kindStyles[k].mini, capDisplay: kindStyles[k].capDisplay,
+      miniW: Math.round(kindStyles[k].w * 0.5), miniH: Math.round(kindStyles[k].h * 0.42),
+      miniRadius: kindStyles[k].bodyRadius,
+      ring: draft.kind === k ? '2px solid #1FB6AF' : '2px solid rgba(90, 76, 55, 0.15)',
+      bg: draft.kind === k ? 'rgba(178, 232, 228, 0.4)' : 'rgba(255, 255, 255, 0.6)',
+      onTap: () => this.setState({ draft: Object.assign({}, this.state.draft, { kind: k }) }),
+    }));
+    const timeChips = ['Morning', 'Midday', 'Evening'].map(t => {
+      const tk = t.toLowerCase(); const on = !!draft.times[tk];
+      return {
+        label: t,
+        bg: on ? 'linear-gradient(180deg, #35D9D1, #17A89F)' : 'rgba(255, 255, 255, 0.7)',
+        color: on ? '#06302E' : '#5C5446',
+        border: on ? '1px solid rgba(23, 168, 159, 0.5)' : '1px solid rgba(90, 76, 55, 0.2)',
+        onTap: () => this.setState({ draft: Object.assign({}, this.state.draft, { times: Object.assign({}, this.state.draft.times, { [tk]: !on }) }) }),
+      };
+    });
+
+    const labels = mode === 'type'
+      ? ['Daily essentials', 'Treatments', 'Topical & care']
+      : ['Morning', 'Midday', 'Evening'];
+
+    const mkRow = (id, name, detail, swatch) => {
+      const t = !!this.state.taken[id];
+      return {
+        name, detail, swatch,
+        onTap: () => this.setState(s => ({ taken: { ...s.taken, [id]: !s.taken[id] } })),
+        deco: t ? 'line-through' : 'none',
+        ringColor: t ? '#1FB6AF' : 'rgba(90, 76, 55, 0.3)',
+        checkBg: t ? 'linear-gradient(180deg, #35D9D1, #17A89F)' : 'transparent',
+        tick: t ? '✓' : '',
+      };
+    };
+    const schedSections = [
+      { label: 'Morning', time: '8:00 AM', rows: [
+        mkRow('m-omega', 'Omega-3', '1000 mg · 1 capsule with food', '#E8A026'),
+        mkRow('m-ibu', 'Ibuprofen', '400 mg · 1 tablet', '#D08A22'),
+        mkRow('m-amox', 'Amoxicillin', '500 mg · 1 capsule', '#D8483A'),
+      ] },
+      { label: 'Midday', time: '2:00 PM', rows: [
+        mkRow('d-lora', 'Loratadine', '10 mg · 1 tablet', '#9AA0AB'),
+        mkRow('d-amox', 'Amoxicillin', '500 mg · 1 capsule', '#D8483A'),
+      ] },
+      { label: 'Evening', time: '9:00 PM', rows: [
+        mkRow('e-syrup', 'Dry Cough Syrup', '10 ml · use measuring cup', '#5C2E08'),
+        mkRow('e-cream', 'Hydrocortisone', '1% · apply thin layer', '#7C828D'),
+      ] },
+    ];
+    const histDays = [
+      { d: 'FRI', n: '5', dot: '#1FB6AF', bg: 'rgba(255, 255, 255, 0.55)' },
+      { d: 'SAT', n: '6', dot: '#1FB6AF', bg: 'rgba(255, 255, 255, 0.55)' },
+      { d: 'SUN', n: '7', dot: '#E5B968', bg: 'rgba(255, 255, 255, 0.55)' },
+      { d: 'MON', n: '8', dot: '#1FB6AF', bg: 'rgba(255, 255, 255, 0.55)' },
+      { d: 'TUE', n: '9', dot: '#1FB6AF', bg: 'rgba(255, 255, 255, 0.55)' },
+      { d: 'WED', n: '10', dot: '#D8483A', bg: 'rgba(255, 255, 255, 0.55)' },
+      { d: 'THU', n: '11', dot: '#1FB6AF', bg: 'rgba(178, 232, 228, 0.75)' },
+    ];
+    const histLog = [
+      { name: 'Omega-3 1000 mg', time: 'Today · 8:02 AM', status: 'Taken', color: '#178F88' },
+      { name: 'Ibuprofen 400 mg', time: 'Today · 8:02 AM', status: 'Taken', color: '#178F88' },
+      { name: 'Dry Cough Syrup 10 ml', time: 'Yesterday · 9:14 PM', status: 'Taken late', color: '#B98A2E' },
+      { name: 'Loratadine 10 mg', time: 'Yesterday · 2:00 PM', status: 'Skipped', color: '#C2543F' },
+      { name: 'Amoxicillin 500 mg', time: 'Yesterday · 8:01 AM', status: 'Taken', color: '#178F88' },
+    ];
+
+    const titles = { home: 'My MedCabinet', schedule: "Today's Schedule", history: 'History' };
+    const selCustom = customList.find(c => c.id === sel);
+    const selMed = selCustom || (sel ? meds[sel] : null) || { name: '', dose: '', form: '' };
+
+    return {
+      showHome: screen === 'home', showSchedule: screen === 'schedule', showHistory: screen === 'history',
+      screenTitle: titles[screen],
+      label1: labels[0], label2: labels[1], label3: labels[2],
+      isType: mode === 'type', isTime: mode === 'time',
+      typeBg: mode === 'type' ? '#2F6F6B' : 'transparent',
+      typeColor: mode === 'type' ? '#F2FBFA' : '#5C5446',
+      timeBg: mode === 'time' ? '#2F6F6B' : 'transparent',
+      timeColor: mode === 'time' ? '#F2FBFA' : '#5C5446',
+      blisterCells: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      setMode: { type: () => this.setState({ mode: 'type', sel: null }), time: () => this.setState({ mode: 'time', sel: null }) },
+      nav: {
+        home: () => this.setState({ screen: 'home', sel: null }),
+        schedule: () => this.setState({ screen: 'schedule', sel: null }),
+        history: () => this.setState({ screen: 'history', sel: null }),
+      },
+      historyBg: screen === 'history' ? 'rgba(178, 232, 228, 0.85)' : 'rgba(255, 255, 255, 0.5)',
+      scheduleBg: screen === 'schedule' ? 'rgba(178, 232, 228, 0.85)' : 'rgba(255, 255, 255, 0.5)',
+      shift, anim, openMed,
+      schedSections, histDays, histLog,
+      customMeds, selId: sel || 'none',
+      deleteSel: () => { const s = this.state.sel; this.setState({ sel: null, customMeds: this.state.customMeds.filter(c => c.id !== s) }); },
+      showAdd: this.state.addOpen,
+      stepIs1: this.state.addStep === 0, stepIs2: this.state.addStep === 1, stepIs3: this.state.addStep === 2,
+      dot1: this.state.addStep === 0 ? '#1FB6AF' : 'rgba(90, 76, 55, 0.25)',
+      dot2: this.state.addStep === 1 ? '#1FB6AF' : 'rgba(90, 76, 55, 0.25)',
+      dot3: this.state.addStep === 2 ? '#1FB6AF' : 'rgba(90, 76, 55, 0.25)',
+      draftName: draft.name, draftDose: draft.dose, draftSlotId: draft.slotId || 'med-photo-draft',
+      setDraftName: (e) => this.setState({ draft: Object.assign({}, this.state.draft, { name: e.target.value }) }),
+      setDraftDose: (e) => this.setState({ draft: Object.assign({}, this.state.draft, { dose: e.target.value }) }),
+      kindOptions, timeChips,
+      openAdd: () => this.setState({ screen: 'home', sel: null, addOpen: true, addStep: 0, draft: { name: '', dose: '', kind: 'amber', times: {}, slotId: 'med-photo-' + Date.now() } }),
+      closeAdd: () => this.setState({ addOpen: false }),
+      addBack: () => this.setState({ addStep: Math.max(0, this.state.addStep - 1) }),
+      addNext: () => {
+        if (this.state.addStep < 2) { this.setState({ addStep: this.state.addStep + 1 }); return; }
+        const d = this.state.draft;
+        const times = ['morning', 'midday', 'evening'].filter(k => d.times[k]);
+        const med = {
+          id: 'c' + Date.now(),
+          name: d.name || 'New medication', dose: d.dose || '—',
+          kind: d.kind, slotId: d.slotId,
+          form: kindLabels[d.kind] + (times.length ? ' · ' + times.join(', ') : ''),
+        };
+        this.setState({ customMeds: this.state.customMeds.concat([med]).slice(-2), addOpen: false });
+      },
+      nextLabel: this.state.addStep === 2 ? 'Place in cabinet' : 'Next',
+      showBack: this.state.addStep > 0,
+      hasSel: !!sel, closeMed: () => this.setState({ sel: null }),
+      selName: selMed.name, selDose: selMed.dose, selForm: selMed.form,
+      camTransform, camOrigin,
+      logDose: () => this.setState({ sel: null }),
+    };
+  }
+}
+</script>
+</body>
+</html>

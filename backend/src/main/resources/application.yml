@@ -88,6 +88,21 @@ eczam:
     anthropic-model: claude-sonnet-4-6
     embedding-model: text-embedding-3-small  # 1536 dims
     top-k: 5
+    # Retrieval grounding gate: cosine similarity below this is treated as
+    # "no grounded passage" → the assistant declines (never hallucinates).
+    min-score: ${AI_MIN_SCORE:0.30}
+
+  # One-time medications dataset seed (see plans/medications-schema-plan.md).
+  # Both default off; enable a stage explicitly when seeding. Stage B needs OPENAI_API_KEY.
+  seed:
+    catalog:
+      enabled: ${SEED_CATALOG:false}        # Stage A: import ilac.json into the catalog
+      file: ${SEED_CATALOG_FILE:}           # absolute path to the uncompressed ilac.json
+    embeddings:
+      enabled: ${SEED_EMBEDDINGS:false}     # Stage B: chunk + embed real leaflets
+    # A few real Turkish medicines so a fresh DB is demoable without the 20k
+    # dataset. No-op once the catalog has rows. (See SampleCatalogSeeder.)
+    sample: ${SEED_SAMPLE:false}
 
   google:
     # EDIT THIS — set to your Google OAuth 2.0 client ID from Google Cloud Console

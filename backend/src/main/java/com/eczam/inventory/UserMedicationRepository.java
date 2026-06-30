@@ -13,6 +13,9 @@ public interface UserMedicationRepository extends JpaRepository<UserMedication, 
     List<UserMedication> findByUserIdOrderByAddedAtDesc(UUID userId);
     Optional<UserMedication> findByIdAndUserId(UUID id, UUID userId);
     boolean existsByUserIdAndMedicationIdAndExpirationDate(UUID userId, UUID medicationId, java.time.LocalDate expirationDate);
+    // Per-box guard: a GS1 serial (AI 21) is globally unique to one physical box,
+    // so the same scanned box can't be added twice for a user.
+    boolean existsByUserIdAndSerialNumber(UUID userId, String serialNumber);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT um FROM UserMedication um WHERE um.id = :id AND um.userId = :userId")

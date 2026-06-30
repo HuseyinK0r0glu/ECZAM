@@ -12,17 +12,28 @@ CREATE TABLE users (
 );
 
 CREATE TABLE medications (
-    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name             VARCHAR(255) NOT NULL,
-    generic_name     VARCHAR(255),
-    manufacturer     VARCHAR(255),
-    barcode          VARCHAR(100) UNIQUE,
-    form             VARCHAR(50),
-    strength         VARCHAR(50),
-    leaflet_raw      TEXT,
-    leaflet_sections JSONB,
-    vector_indexed   BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name               VARCHAR(255) NOT NULL,
+    generic_name       VARCHAR(255),
+    manufacturer       VARCHAR(255),
+    barcode            VARCHAR(100) UNIQUE,
+    -- Canonical 14-digit GTIN: the join key for GS1 DataMatrix scans (AI 01).
+    -- Raw `barcode` is mostly EAN-13; a scan yields GTIN-14, so both sides are
+    -- normalised to 14 digits before lookup. NULL for unparseable barcodes
+    -- (search-only, never scan-matchable). UNIQUE allows many NULLs by default.
+    gtin               VARCHAR(14) UNIQUE,
+    atc_code           VARCHAR(16),
+    atc_group          VARCHAR(1),               -- ATC anatomical main group (first letter)
+    active_ingredient  VARCHAR(512),            -- NULL when source value is a placeholder
+    category_path      JSONB,                   -- cleaned ordered therapeutic-category array
+    form               VARCHAR(50),
+    strength           VARCHAR(50),
+    leaflet_raw        TEXT,                    -- full leaflet text, only when real
+    leaflet_sections   JSONB,
+    leaflet_truncated  BOOLEAN NOT NULL DEFAULT FALSE,  -- source text hit the ~32k ceiling
+    leaflet_hash       VARCHAR(64),              -- SHA-256 of leaflet_raw; skip re-embed when unchanged
+    vector_indexed     BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE user_medications (
@@ -31,11 +42,18 @@ CREATE TABLE user_medications (
     medication_id   UUID NOT NULL REFERENCES medications(id),
     quantity        NUMERIC(10, 2) NOT NULL DEFAULT 0,
     unit            VARCHAR(20) NOT NULL DEFAULT 'pill',
-    expiration_date DATE,
+    -- Per-physical-box GS1 facts, decoded fresh on every scan and NEVER derived
+    -- from the medication catalog. One row = one physical box a user owns.
+    batch           VARCHAR(64),    -- GS1 AI 10 (lot)
+    serial_number   VARCHAR(64),    -- GS1 AI 21
+    expiration_date DATE,           -- GS1 AI 17
     notes           TEXT,
     added_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (user_id, medication_id, expiration_date)
+    -- Each physical box is its own row (two boxes may share a product + expiry
+    -- but differ by batch/serial). NULLs are distinct in Postgres unique keys,
+    -- so manually-added boxes without batch/serial are not over-merged.
+    UNIQUE (user_id, medication_id, batch, serial_number, expiration_date)
 );
 
 CREATE TABLE medication_schedules (
@@ -60,6 +78,11 @@ CREATE TABLE medication_logs (
     taken_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     quantity_used       NUMERIC(6, 2) NOT NULL,
     notes               TEXT,
+    -- Idempotency key supplied by the (offline-capable) client. Replaying the
+    -- same dose-log POST with the same key is a no-op, so a queued offline write
+    -- retried on reconnect never double-decrements stock. Unique per box
+    -- (see V3 partial index). NULL = legacy/no-key writes (always insert).
+    client_request_id   VARCHAR(64),
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -77,7 +100,12 @@ CREATE TABLE leaflet_chunks (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     medication_id   UUID NOT NULL REFERENCES medications(id) ON DELETE CASCADE,
     section_name    VARCHAR(100) NOT NULL,
+    section_ordinal SMALLINT,            -- 1–5 canonical KT section, for ordered citation
     chunk_text      TEXT NOT NULL,
+    char_start      INTEGER,             -- provenance back into leaflet_raw
+    char_len        INTEGER,
+    token_count     SMALLINT,            -- approx, for retrieval budgeting
+    source_lang     CHAR(2) NOT NULL DEFAULT 'tr',
     embedding       VECTOR(1536),
     chunk_index     INTEGER NOT NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()

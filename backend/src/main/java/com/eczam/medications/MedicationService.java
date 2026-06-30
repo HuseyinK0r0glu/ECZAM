@@ -57,10 +57,13 @@ public class MedicationService {
         return toDetail(m);
     }
 
-    /** Barcode lookup: local → OpenFDA (create + ingest) → 404. */
+    /** Barcode lookup: canonical GTIN → raw barcode → OpenFDA (create + ingest) → 404. */
     @Transactional
     public MedicationDetail lookupByBarcode(String code) {
-        return repo.findByBarcode(code)
+        // A scan decodes a GS1 GTIN-14; the catalog stores mostly EAN-13. Resolve
+        // both via the canonical 14-digit gtin before falling back to the raw code.
+        return Gtin.canonicalize(code).flatMap(repo::findByGtin)
+                .or(() -> repo.findByBarcode(code))
                 .map(MedicationService::toDetail)
                 .orElseGet(() -> openFda.lookupByBarcode(code)
                         .map(m -> {

@@ -34,6 +34,10 @@ public class MedicationLog {
     @Column(columnDefinition = "text")
     private String notes;
 
+    /** Client-supplied idempotency key; replays with the same key are no-ops. */
+    @Column(name = "client_request_id", length = 64)
+    private String clientRequestId;
+
     @CreationTimestamp @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 }

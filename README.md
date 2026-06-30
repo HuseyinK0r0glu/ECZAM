@@ -1,12 +1,16 @@
 # ECZAM
 
-**Smart medication management PWA** — helps elderly and chronic-condition patients (and
+**Smart medication management app** — helps elderly and chronic-condition patients (and
 their caregivers) manage the full medication lifecycle: inventory, dose scheduling and
 logging, expiration monitoring, leaflet search with text-to-speech, and a leaflet-grounded
 AI assistant.
 
-> **Stack:** Java 21 · Spring Boot 3.2+ · PostgreSQL + pgvector (backend) · React 18 ·
-> TypeScript · Vite PWA (frontend) · **Compliance:** KVKK (Turkey).
+> **Stack:** Java 21 · Spring Boot 3.2+ · PostgreSQL + pgvector (backend) · **Flutter**
+> (mobile client) · **Compliance:** KVKK (Turkey).
+>
+> The frontend was migrated from a React/TS PWA to **Flutter** (see
+> [plans/flutter-migration-plan.md](plans/flutter-migration-plan.md)); the archived React
+> app lives in `old_frontend_react/`.
 
 **New here? Read in this order:**
 [ECZAM_PROJECT_BRIEF.md](ECZAM_PROJECT_BRIEF.md) (source of truth) →
@@ -22,77 +26,62 @@ AI assistant.
 ECZAM/
 ├── ECZAM_PROJECT_BRIEF.md   # authoritative product/technical spec
 ├── CLAUDE.md                # guide for AI-assisted development
+├── Makefile                 # dev task runner (`make help`)
 ├── docs/                    # documentation suite (start at docs/README.md)
-├── plans/                   # phase-by-phase implementation plans (start at 00-overview.md)
-├── backend/                 # Spring Boot service (package com.eczam) — built in Phase 1+
-│   ├── docker-compose.yml   # dev PostgreSQL + pgvector
+├── plans/                   # implementation + migration + testing plans
+├── backend/                 # Spring Boot service (package com.eczam)
+│   ├── docker-compose.yml   # dev stack: PostgreSQL+pgvector + the API
+│   ├── Dockerfile           # backend image (multi-stage)
+│   ├── api.http             # runnable REST request collection
 │   └── .env.example         # backend env template
-└── frontend/                # React 18 + TS PWA — built in Phase 1+
-    └── .env.example         # frontend env template
+├── frontend/                # Flutter app (Dart) — the active client
+└── old_frontend_react/      # archived React + TS PWA
 ```
 
 Backend layering per domain: `controller → service → repository → entity → dto → mapper`
-(see [docs/system-architecture.md](docs/system-architecture.md)). Frontend is feature-based
-(`pages/`, `features/`, `services/`, `hooks/`, `contexts/`, `routes/`).
+(see [docs/system-architecture.md](docs/system-architecture.md)). Flutter client is
+layered `core/` (networking, sync) · `features/` (DTOs + repositories) · `data/` (SQLite
+mirror) · `state/` (Provider) · `ui/` (screens) — see [CLAUDE.md](CLAUDE.md) §3.
 
 ## Prerequisites
 
 | Tool | Version |
 |---|---|
 | JDK | 21 (Temurin) |
-| Node | 20+ |
-| Docker | for the dev database |
-| Maven | via the `./mvnw` wrapper (added in Phase 1) |
+| Docker | for the dev database / stack |
+| Flutter | 3.x (Dart 3) for the client |
+| Maven | via the `./mvnw` wrapper |
+
+## Quick start
 
 ```bash
-java -version    # 21
-node -v          # 20+
-docker -v
-```
-
-## Setup
-
-```bash
-# 1. Configure environment (copy templates, then fill in secrets)
+# 1. Configure backend secrets (copy template, then fill in)
 cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
+openssl rand -base64 48          # → JWT_SECRET
 
-# 2. Start the dev database (PostgreSQL + pgvector)
-cd backend && docker compose up -d
+# 2. Bring up the whole backend stack (Postgres+pgvector + API on :8080)
+make up                          # = cd backend && docker compose up --build
+#   …or just the DB and run the API from your IDE:
+make db-up && make backend
+#   …with a few sample medicines to search/scan:
+make seed-sample
+
+# 3. Run the Flutter client against the local backend
+make flutter-get && make flutter-run
 ```
 
-Generate the secrets referenced in `backend/.env`:
+`make help` lists every task. Poke the API directly with `backend/api.http` (VS Code
+REST Client / IntelliJ HTTP client). Never commit a real `.env` — the root
+[.gitignore](.gitignore) keeps only the `.env.example` templates.
+
+## Tests
 
 ```bash
-openssl rand -base64 48                 # JWT_SECRET
-npx web-push generate-vapid-keys        # VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY (Phase 4)
+make backend-test     # JUnit 5 + Testcontainers (coverage → backend/target/site/jacoco)
+make flutter-test     # flutter test --coverage
 ```
 
-Never commit a real `.env` — the root [.gitignore](.gitignore) excludes it and keeps only
-the `.env.example` templates.
-
-## Run
-
-> The `backend/` and `frontend/` projects are scaffolded in **Phase 1**
-> ([plans/phase-1-foundation.md](plans/phase-1-foundation.md)). Once scaffolded:
-
-```bash
-# Terminal 1 — database
-cd backend && docker compose up -d
-
-# Terminal 2 — backend API  → http://localhost:8080  (base path /api/v1)
-cd backend && ./mvnw spring-boot:run
-
-# Terminal 3 — frontend PWA → http://localhost:5173
-cd frontend && npm install && npm run dev
-```
-
-Tests:
-
-```bash
-cd backend  && ./mvnw test    # JUnit 5 + Testcontainers
-cd frontend && npm test       # Vitest
-```
+See [plans/testing-plan.md](plans/testing-plan.md) for the full strategy and gaps.
 
 ## Build order
 

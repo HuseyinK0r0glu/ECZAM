@@ -1,5 +1,11 @@
 # ECZAM — MVP Definition
 
+> **🟢 Frontend = Flutter.** The MVP feature set is unchanged, but the client is a
+> **Flutter app**, not a React PWA. "Installable PWA / offline via service worker"
+> becomes a native install + a **sqflite mirror cache & outbox**; "Web Push"
+> becomes **local notifications** (server-driven push via FCM is out of scope, a
+> documented gap). See [`../plans/flutter-migration-plan.md`](../plans/flutter-migration-plan.md).
+
 > The precise boundary of the Minimum Viable Product: what's in, what's out, the
 > phased build plan with exit criteria, and what "done" means.
 

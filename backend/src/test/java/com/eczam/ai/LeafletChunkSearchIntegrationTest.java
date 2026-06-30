@@ -36,9 +36,9 @@ class LeafletChunkSearchIntegrationTest extends AbstractIntegrationTest {
         UUID med = newMedication();
         UUID otherMed = newMedication();
 
-        chunks.insert(med, "dosage", "Günde iki kez bir tablet.", oneHot(0, 1f), 0);
-        chunks.insert(med, "storage", "Oda sıcaklığında saklayın.", oneHot(1, 1f), 1);
-        chunks.insert(med, "side_effects", "Baş ağrısı görülebilir.", oneHot(2, 1f), 2);
+        chunks.insert(med, "dosage", 3, "Günde iki kez bir tablet.", 0, 25, 6, "tr", oneHot(0, 1f), 0);
+        chunks.insert(med, "storage", 5, "Oda sıcaklığında saklayın.", 0, 26, 6, "tr", oneHot(1, 1f), 1);
+        chunks.insert(med, "side_effects", 4, "Baş ağrısı görülebilir.", 0, 23, 5, "tr", oneHot(2, 1f), 2);
 
         // Query closest to the "dosage" vector (index 0).
         float[] query = oneHot(0, 0.9f);

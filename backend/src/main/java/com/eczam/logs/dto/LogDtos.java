@@ -12,7 +12,11 @@ public final class LogDtos {
             @NotNull String userMedicationId,
             @NotNull @Positive BigDecimal quantityUsed,
             String scheduleId,
-            String notes) {}
+            String notes,
+            // Optional idempotency key (≤64 chars). The offline client derives a
+            // stable value per (box, reminder-time, day) so a retried/queued POST
+            // never decrements stock twice.
+            @jakarta.validation.constraints.Size(max = 64) String clientRequestId) {}
 
     public record LogView(String id, String userMedicationId, String scheduleId,
                           OffsetDateTime takenAt, BigDecimal quantityUsed, String notes) {}

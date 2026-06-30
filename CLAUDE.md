@@ -13,7 +13,8 @@ suite as the elaborated specification.
 
 ## 1. What ECZAM is
 
-ECZAM is a **smart medication management Progressive Web App (PWA)** that makes
+ECZAM is a **smart medication management app** (Flutter mobile client + Spring
+Boot backend; originally specced as a PWA) that makes
 medication safe, organized, and accessible — especially for elderly and chronic-
 condition patients and their caregivers. It manages the full medication lifecycle
 through four pillars:
@@ -34,16 +35,24 @@ through four pillars:
 |---|---|
 | **Backend** | Java 21, **Spring Boot 3.2+**, Spring Web, Spring Data JPA, Spring Security, Bean Validation, **Maven** |
 | **Database** | **PostgreSQL** + **pgvector**; migrations via **Flyway** |
-| **Frontend** | React 18 + **TypeScript** + Vite, React Router v6, TanStack Query (server state), Zustand (client state), Tailwind CSS |
-| **PWA** | Vite PWA plugin (service worker), Web App Manifest, Web Push API |
-| **Scheduler** | Spring `@Scheduled` / Quartz (per-minute tick); Redis optional |
-| **AI** | Anthropic API `claude-sonnet-4-6` (assistant); OpenAI `text-embedding-3-small` or a local model (embeddings) |
-| **Notifications** | Web Push (VAPID) from the backend; optional email via Spring Mail |
+| **Frontend** | **Flutter** (Dart) — Material 3, **Provider** (state), **Dio** (HTTP + interceptors + SSE), **sqflite** (offline mirror cache), `flutter_secure_storage` (JWT) |
+| **Offline** | Online-first with a SQLite **mirror cache** + an outbox (`pending_ops`) drained on reconnect; `connectivity_plus` for online/offline detection |
+| **Scheduler** | Backend: Spring `@Scheduled` / Quartz (per-minute tick). Client reminders: **`flutter_local_notifications`** (exact local alarms, offline-capable) |
+| **AI** | Anthropic API `claude-sonnet-4-6` (assistant, streamed via SSE-over-POST); OpenAI `text-embedding-3-small` or a local model (embeddings); **`flutter_tts`** for read-aloud |
+| **Barcode** | **`mobile_scanner`** (camera) → `GET /medications/barcode/{code}` |
+| **Notifications** | **Local** reminders on-device (`flutter_local_notifications`). Backend Web Push (VAPID) is **browser-only** — server-driven push to the native app would need **FCM**, which is a documented gap (not built for MVP) |
 
-> **Stack note:** the brief originally suggested a Node/NestJS or Rust/Axum backend.
-> This project deliberately uses **Spring Boot + PostgreSQL** instead. The REST
-> contract, DB schema, and domain logic in the brief still apply verbatim — only the
-> implementation framework changed. See [`docs/system-architecture.md`](docs/system-architecture.md).
+> **Stack notes:**
+> 1. The brief originally suggested a Node/NestJS or Rust/Axum backend. This
+>    project deliberately uses **Spring Boot + PostgreSQL** instead.
+> 2. The frontend was migrated from a **React 18 + TS PWA** to **Flutter** (see
+>    [`plans/flutter-migration-plan.md`](plans/flutter-migration-plan.md)). The
+>    archived React app lives in `old_frontend_react/`. The REST contract, DB
+>    schema, and domain logic in the brief still apply verbatim — only the client
+>    framework changed. See [`docs/system-architecture.md`](docs/system-architecture.md).
+> 3. The Flutter package is still internally named `medtrack`
+>    (`frontend/pubspec.yaml`, all `package:medtrack/...` imports) — renaming to
+>    `eczam` is optional mechanical cleanup, left as-is.
 
 ---
 
@@ -55,8 +64,9 @@ ECZAM/
 ├── CLAUDE.md                # this file
 ├── docs/                    # full documentation suite (see docs/README.md)
 ├── plans/                   # planning artifacts
-├── backend/                 # Spring Boot service        (created once scaffolded)
-└── frontend/                # React + TS PWA             (created once scaffolded)
+├── backend/                 # Spring Boot service
+├── frontend/                # Flutter app (Dart) — the active client
+└── old_frontend_react/      # archived React + TS PWA (superseded by Flutter)
 ```
 
 **Backend package layering** (per domain: auth, users, medications, inventory,
@@ -71,29 +81,55 @@ dto         → request/response records + Bean Validation
 mapper      → entity ↔ DTO (MapStruct)
 ```
 
-**Frontend structure** is feature-based: `components/`, `pages/`, `features/`
-(medications, reminders, inventory, expiration, ai-assistant), `services/`,
-`hooks/` (e.g. `useTTS`, `useBarcode`, `useNotifications`), `contexts/`, `routes/`,
-`utils/`.
+**Frontend structure** (`frontend/lib/`) is layered:
+
+```
+core/        cross-cutting plumbing
+  config/env.dart        API base URL from --dart-define
+  api/                   Dio client, {data,meta,error} envelope, ApiException
+  sync/                  connectivity + (mirror cache lives in data/)
+  token_store.dart       secure JWT access + refresh storage
+features/    one folder per domain (DTOs + repositories that call the backend)
+  auth/  medications/  inventory/  schedules/  logs/  expiration/  ai/  profile/
+data/        app_database.dart (SQLite mirror + outbox),
+             medication_repository.dart (mirror),
+             backend_medication_repository.dart (online-first composition)
+models/      UI aggregate models (Medication, DoseLog) — String/UUID ids
+services/    notification_service.dart (local notifications), photo_service.dart
+state/       app_state.dart (Provider ChangeNotifier), adherence.dart
+ui/          screens: cabinet/, schedule/, history/, add_med/, ai/, expiration/,
+             profile/, scan/, home_shell.dart
+theme/       med_theme.dart (design tokens)
+```
 
 ---
 
 ## 4. Build / run / test commands
 
-> Marked **once scaffolded** — code does not exist yet. Add real commands here when
-> the projects are created.
-
 ```bash
-# Backend (once scaffolded)
-cd backend && ./mvnw spring-boot:run      # run API
-cd backend && ./mvnw test                 # unit + integration tests (Testcontainers)
+# Backend — one-command stack (Postgres+pgvector + API) via Docker Compose:
+cd backend && cp .env.example .env        # fill in JWT_SECRET, AI keys, …
+cd backend && docker compose up --build   # API on :8080, context path /api/v1
+cd backend && docker compose up -d db      # just the DB (run the API from your IDE)
+
+# Or run the API directly against a local DB on :5432 (db/user/pass eczam/eczam/eczam):
+cd backend && ./mvnw spring-boot:run      # run API on :8080
+cd backend && ./mvnw verify               # unit + integration tests (Testcontainers)
 cd backend && ./mvnw clean package        # build jar
 
-# Frontend (once scaffolded)
-cd frontend && npm run dev                # Vite dev server (http://localhost:5173)
-cd frontend && npm test                   # Vitest unit/component tests
-cd frontend && npm run build              # production PWA build
+# Frontend (Flutter) — point API_BASE_URL at the backend for your target
+cd frontend && flutter pub get
+cd frontend && flutter analyze
+cd frontend && flutter test               # unit + widget tests
+# Android emulator → host backend (10.0.2.2 maps to the host loopback):
+cd frontend && flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080/api/v1
+# iOS simulator: use http://localhost:8080/api/v1 ; device: use the host LAN IP.
+cd frontend && flutter build apk --dart-define=API_BASE_URL=https://api.eczam.app/api/v1
 ```
+
+> The default `API_BASE_URL` is `http://10.0.2.2:8080/api/v1` (Android emulator).
+> The Android manifest enables `usesCleartextTraffic` for local HTTP dev — use
+> HTTPS in production. See `frontend/RUNNING.md` for the local toolchain paths.
 
 ---
 
@@ -124,6 +160,19 @@ Seven tables: `users`, `medications` (global catalog), `user_medications`
 **logging a dose decrements the matching `user_medications.quantity`**. Full schema
 in [`docs/database-design.md`](docs/database-design.md).
 
+Notable behaviors to preserve:
+- **Per-box inventory** — `user_medications` carries GS1 `batch`/`serial_number`
+  (+ `expiration_date`); one physical box = one row (5-column UNIQUE). A scanned
+  serial can't be added twice.
+- **Idempotent dose logging** — `POST /medication-logs` accepts an optional
+  `clientRequestId`; a replay with the same key returns the original result and
+  does **not** decrement again (the Flutter sync engine sends a stable key so the
+  offline outbox flush is safe).
+- **GTIN join key** — `medications.gtin` (canonical 14-digit) is the scan lookup
+  key; `barcode` is the raw source value.
+- **RAG grounding gate** — `eczam.ai.min-score` (default 0.30) is the retrieval
+  threshold; below it the assistant declines. Truncated leaflets append a caveat.
+
 ---
 
 ## 7. AI assistant guardrails
@@ -147,11 +196,16 @@ Pipeline and system prompt: [`docs/system-architecture.md`](docs/system-architec
   interaction detection, OCR box recognition, prescription import, refill
   recommendations, national DB integrations beyond OpenFDA, microphone voice input
   (TTS output only). See [`docs/mvp-definition.md`](docs/mvp-definition.md).
-- **Accessibility:** WCAG 2.1 AA minimum; fully functional at 375px; user font
-  scaling respected; keyboard focus indicators; TTS keyboard-accessible.
+- **Accessibility:** WCAG 2.1 AA-equivalent; fully functional on a 375px-wide
+  screen; respect the OS font-scale setting; visible focus/semantics on
+  interactive widgets; TTS reachable via a labelled control (`flutter_tts`).
 - **Compliance:** **KVKK** (Turkey) — health data is special-category personal data.
+  Tokens live in the platform keystore/keychain (`flutter_secure_storage`).
   See [`docs/security-requirements.md`](docs/security-requirements.md).
 - **Performance:** p95 < 300ms for non-AI endpoints; AI time-to-first-token < 2s.
+- **Push gap:** the backend's Web Push (VAPID) is browser-only; the native app
+  uses **local notifications** for reminders. Server-driven push would need FCM —
+  out of scope for MVP, tracked as a known gap.
 
 ---
 

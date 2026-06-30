@@ -90,11 +90,24 @@ The UI must prioritize:
 
 ## 4. Frontend Architecture
 
-**Stack:** React 18+ with TypeScript, Vite as the build tool, React Router v6 for routing, TanStack Query (React Query) for server state, Zustand for lightweight client state, Tailwind CSS for styling.
+> **⚠️ Implemented as Flutter, not React.** The frontend was migrated from the
+> React/PWA stack described below to a **Flutter** mobile app
+> (see [`plans/flutter-migration-plan.md`](plans/flutter-migration-plan.md); archived
+> React app in `old_frontend_react/`). The mapping: React→Flutter widgets,
+> TanStack Query/Zustand→**Provider**, React Router→in-app navigation,
+> Tailwind→Material 3/theme, Axios/fetch→**Dio**, Web Speech→**`flutter_tts`**,
+> html5-qrcode→**`mobile_scanner`**, service worker/Web Push→on-device
+> **`flutter_local_notifications`** (FCM is a documented gap). The REST contract,
+> data model, and feature set are unchanged. The sections below remain the
+> original spec for reference.
 
-**PWA:** Service worker via Vite PWA plugin, Web App Manifest for installability, Web Push API for notifications.
+**Stack (original spec):** React 18+ with TypeScript, Vite as the build tool, React Router v6 for routing, TanStack Query (React Query) for server state, Zustand for lightweight client state, Tailwind CSS for styling.
 
-**Accessibility targets:** WCAG 2.1 AA minimum. Font sizes must be overridable by the user's browser settings. All interactive elements must have keyboard focus indicators. TTS controls must be keyboard-accessible.
+**Stack (as built):** Flutter (Dart), Material 3, Provider for state, Dio for HTTP (with auth/refresh interceptors and SSE streaming), sqflite as an offline mirror cache + outbox, `flutter_secure_storage` for JWTs, `flutter_local_notifications` for reminders, `flutter_tts` for read-aloud, `mobile_scanner` for barcodes.
+
+**PWA (original spec):** Service worker via Vite PWA plugin, Web App Manifest for installability, Web Push API for notifications. In the Flutter build, installability is native and reminders are local notifications.
+
+**Accessibility targets:** WCAG 2.1 AA-equivalent. Font sizes must respect the OS font-scale setting. All interactive elements must expose semantics/focus. TTS controls must be reachable via a labelled control.
 
 ### 4.1 Directory Structure
 

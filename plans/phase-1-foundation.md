@@ -1,5 +1,12 @@
 # Phase 1 — Foundation
 
+> **🟢 Frontend = Flutter.** This plan's **Frontend** sections (Vite/React/Tailwind
+> scaffold, TanStack/Zustand, service worker) are superseded by the Flutter app —
+> see [`flutter-migration-plan.md`](flutter-migration-plan.md). The Flutter
+> equivalent of this phase: `flutter create`, the `core/` networking layer
+> (Dio + `{data,meta,error}` envelope + secure token store), and the auth screens
+> + Provider gate. Backend tasks here are unchanged.
+
 > **Goal:** a runnable monorepo with the full database schema, working email/password
 > auth (register, login, JWT access + refresh, password reset), a stateless Spring
 > Security chain, and a React shell with routing, an auth context, and protected routes.

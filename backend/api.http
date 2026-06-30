@@ -1,0 +1,149 @@
+### ECZAM API — runnable request collection
+#
+# Works with the VS Code "REST Client" extension and the IntelliJ HTTP Client.
+# Run requests top-to-bottom: `login` captures the access token, and `createMed`
+# / `addInventory` capture ids that later requests reuse.
+#
+# Start the backend first:  cd backend && docker compose up --build
+# (Set SEED_SAMPLE=true in .env to get a few medicines to search/scan.)
+
+@host = http://localhost:8080/api/v1
+@email = demo@eczam.app
+@password = SecureP@ss1!
+
+### Register a new account
+# @name register
+POST {{host}}/auth/register
+Content-Type: application/json
+
+{ "email": "{{email}}", "password": "{{password}}", "displayName": "Demo User" }
+
+### Log in (captures the token used below)
+# @name login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{ "email": "{{email}}", "password": "{{password}}" }
+
+@token = {{login.response.body.data.accessToken}}
+@refresh = {{login.response.body.data.refreshToken}}
+
+### Rotate the refresh token
+POST {{host}}/auth/refresh
+Content-Type: application/json
+
+{ "refreshToken": "{{refresh}}" }
+
+### Current profile
+GET {{host}}/users/me
+Authorization: Bearer {{token}}
+
+### Update notification preferences (low-stock + expiry thresholds)
+PATCH {{host}}/users/me/preferences
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "push": true, "lowStockThreshold": 5, "expiryWarningDays": 30 }
+
+### Search the medication catalog (needs SEED_SAMPLE=true or a real seed)
+GET {{host}}/medications?q=parol&limit=10
+Authorization: Bearer {{token}}
+
+### Look up a medication by barcode (GS1/EAN-13)
+GET {{host}}/medications/barcode/8699546011027
+Authorization: Bearer {{token}}
+
+### Create a catalog medication (normally admin/seed — handy for testing)
+# @name createMed
+POST {{host}}/medications
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Test Med", "genericName": "Testium", "form": "tablet", "strength": "10 mg" }
+
+@medicationId = {{createMed.response.body.data.id}}
+
+### Add a physical box to the cabinet (per-box: batch + serial)
+# @name addInventory
+POST {{host}}/user-medications
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "medicationId": "{{medicationId}}",
+  "quantity": 30,
+  "unit": "pill",
+  "expirationDate": "2027-01-31",
+  "batch": "LOT-001",
+  "serialNumber": "SER-0001"
+}
+
+@userMedicationId = {{addInventory.response.body.data.id}}
+
+### List the cabinet
+GET {{host}}/user-medications
+Authorization: Bearer {{token}}
+
+### Update quantity / restock
+PATCH {{host}}/user-medications/{{userMedicationId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "quantity": 28 }
+
+### Create a daily reminder schedule
+# @name createSchedule
+POST {{host}}/user-medications/{{userMedicationId}}/schedules
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "dosageAmount": 1, "frequencyType": "daily", "scheduledTimes": ["08:00", "20:00"] }
+
+@scheduleId = {{createSchedule.response.body.data.id}}
+
+### List all schedules
+GET {{host}}/schedules
+Authorization: Bearer {{token}}
+
+### Pause / resume a schedule
+POST {{host}}/schedules/{{scheduleId}}/pause
+Authorization: Bearer {{token}}
+
+###
+POST {{host}}/schedules/{{scheduleId}}/resume
+Authorization: Bearer {{token}}
+
+### Log a taken dose (idempotent — clientRequestId makes a retry a no-op)
+POST {{host}}/medication-logs
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "userMedicationId": "{{userMedicationId}}",
+  "quantityUsed": 1,
+  "scheduleId": "{{scheduleId}}",
+  "clientRequestId": "dose-2026-06-13-0800"
+}
+
+### Dose history for an inventory item
+GET {{host}}/medication-logs?userMedicationId={{userMedicationId}}&limit=50
+Authorization: Bearer {{token}}
+
+### Expiring soon / expired
+GET {{host}}/expiration/expiring-soon
+Authorization: Bearer {{token}}
+
+###
+GET {{host}}/expiration/expired
+Authorization: Bearer {{token}}
+
+### AI assistant (Server-Sent Events; needs ANTHROPIC_API_KEY + embeddings)
+POST {{host}}/ai/chat
+Authorization: Bearer {{token}}
+Accept: text/event-stream
+Content-Type: application/json
+
+{ "message": "Bu ilacın yan etkileri nelerdir?", "medicationId": "{{medicationId}}" }
+
+### Health
+GET {{host}}/actuator/health
