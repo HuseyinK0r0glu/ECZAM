@@ -42,7 +42,7 @@ dependencies:
   flutter_local_notifications: ^22.0.0
   timezone: ^0.11.0
   flutter_timezone: ^5.1.0
-  intl: ^0.20.2
+  intl: ^0.20.3
 
   # --- ECZAM backend wiring (React→Flutter migration) ---
   dio: ^5.7.0                     # HTTP client + interceptors + SSE streaming
