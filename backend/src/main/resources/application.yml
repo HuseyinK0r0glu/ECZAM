@@ -92,6 +92,15 @@ eczam:
     # "no grounded passage" → the assistant declines (never hallucinates).
     min-score: ${AI_MIN_SCORE:0.30}
 
+  medications:
+    search:
+      # Catalog search (GET /medications?q=) trigram-similarity floor: a
+      # word_similarity() below this is treated as "not a match" (query the
+      # best-matching word span in a catalog name, not the whole string, so a
+      # short hand-typed query still scores well against a verbose entry like
+      # "ASPIRIN 100 MG 20 TABLET").
+      min-similarity: ${MEDICATIONS_SEARCH_MIN_SIMILARITY:0.25}
+
   # One-time medications dataset seed (see plans/medications-schema-plan.md).
   # Both default off; enable a stage explicitly when seeding. Stage B needs OPENAI_API_KEY.
   seed:

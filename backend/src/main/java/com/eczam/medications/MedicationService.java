@@ -4,10 +4,8 @@ import com.eczam.ai.LeafletIndexer;
 import com.eczam.integrations.barcode.OpenFdaClient;
 import com.eczam.medications.dto.MedicationDtos.*;
 import com.eczam.shared.web.ApiException;
-import com.eczam.shared.web.CursorCodec;
 import com.eczam.shared.web.ErrorCode;
-import com.eczam.shared.web.Meta;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -20,20 +18,79 @@ import java.util.UUID;
 @Service
 public class MedicationService {
 
+    /** Hard ceiling on `limit`, regardless of what the caller asks for. */
+    static final int MAX_LIMIT = 100;
+
     private final MedicationRepository repo;
+    private final MedicationSearchRepository searchRepo;
     private final OpenFdaClient openFda;
     private final LeafletIndexer indexer;
+    private final double minSimilarity;
 
-    public MedicationService(MedicationRepository repo, OpenFdaClient openFda, LeafletIndexer indexer) {
+    public MedicationService(MedicationRepository repo, MedicationSearchRepository searchRepo,
+                              OpenFdaClient openFda, LeafletIndexer indexer,
+                              @Value("${eczam.medications.search.min-similarity:0.25}") double minSimilarity) {
         this.repo = repo;
+        this.searchRepo = searchRepo;
         this.openFda = openFda;
         this.indexer = indexer;
+        this.minSimilarity = minSimilarity;
     }
 
+    /**
+     * One page of catalog search results: the items, the opaque cursor for
+     * the next one (null when there isn't one), and the actually-applied
+     * page size (the caller's requested {@code limit}, clamped).
+     */
+    public record SearchPage(List<MedicationView> items, String nextCursor, int effectiveLimit) {}
+
+    /**
+     * Catalog free-text search. Blank {@code q} preserves the original
+     * "browse everything" behavior (alphabetical by name). A non-blank
+     * {@code q} ranks by pg_trgm {@code word_similarity} — typo-tolerant,
+     * and scores a short query against the best-matching word span in a
+     * long catalog name rather than the whole string — dropping anything
+     * below {@link #minSimilarity} so an unrelated query returns nothing.
+     */
     @Transactional(readOnly = true)
-    public List<MedicationView> search(String q, int limit) {
-        return repo.search(q == null || q.isBlank() ? null : q, PageRequest.of(0, limit))
-                .map(MedicationService::toView).getContent();
+    public SearchPage search(String q, String cursor, int limit) {
+        int effectiveLimit = clampLimit(limit);
+        boolean blank = q == null || q.isBlank();
+
+        // Fetch one extra row to learn whether a next page exists, without a
+        // separate (and racier) COUNT query.
+        List<MedicationSearchRepository.Row> rows;
+        if (blank) {
+            MedicationSearchCursor c = MedicationSearchCursor.decodeAlpha(cursor);
+            rows = searchRepo.browseAlphabetical(
+                    c == null ? null : c.afterName(),
+                    c == null ? null : c.afterId(),
+                    effectiveLimit + 1);
+        } else {
+            MedicationSearchCursor c = MedicationSearchCursor.decodeSimilarity(cursor);
+            rows = searchRepo.searchBySimilarity(
+                    q.trim(), minSimilarity,
+                    c == null ? null : c.afterScore(),
+                    c == null ? null : c.afterId(),
+                    effectiveLimit + 1);
+        }
+
+        boolean hasMore = rows.size() > effectiveLimit;
+        List<MedicationSearchRepository.Row> page = hasMore ? rows.subList(0, effectiveLimit) : rows;
+
+        String nextCursor = null;
+        if (hasMore) {
+            MedicationSearchRepository.Row last = page.get(page.size() - 1);
+            nextCursor = blank
+                    ? MedicationSearchCursor.forAlpha(last.name(), last.id()).encode()
+                    : MedicationSearchCursor.forSimilarity(last.score(), last.id()).encode();
+        }
+
+        return new SearchPage(page.stream().map(MedicationService::toView).toList(), nextCursor, effectiveLimit);
+    }
+
+    static int clampLimit(int limit) {
+        return Math.max(1, Math.min(limit, MAX_LIMIT));
     }
 
     @Transactional(readOnly = true)
@@ -93,8 +150,6 @@ public class MedicationService {
         return new LeafletSearchResult(hits);
     }
 
-    public Meta cursorMeta(int limit) { return new Meta(null, limit); }
-
     Medication load(UUID id) {
         return repo.findById(id).orElseThrow(() -> ApiException.notFound("Medication not found"));
     }
@@ -124,9 +179,9 @@ public class MedicationService {
         }
     }
 
-    static MedicationView toView(Medication m) {
-        return new MedicationView(m.getId().toString(), m.getName(), m.getGenericName(),
-                m.getManufacturer(), m.getBarcode(), m.getForm(), m.getStrength(), m.isVectorIndexed());
+    static MedicationView toView(MedicationSearchRepository.Row r) {
+        return new MedicationView(r.id().toString(), r.name(), r.genericName(),
+                r.manufacturer(), r.barcode(), r.form(), r.strength(), r.vectorIndexed());
     }
     static MedicationDetail toDetail(Medication m) {
         return new MedicationDetail(m.getId().toString(), m.getName(), m.getGenericName(),

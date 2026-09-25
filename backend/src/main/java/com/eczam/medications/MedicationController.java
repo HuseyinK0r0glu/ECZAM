@@ -2,6 +2,7 @@ package com.eczam.medications;
 
 import com.eczam.medications.dto.MedicationDtos.*;
 import com.eczam.shared.web.ApiResponse;
+import com.eczam.shared.web.Meta;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -23,13 +24,17 @@ public class MedicationController {
     public MedicationController(MedicationService service) { this.service = service; }
 
     @Operation(summary = "Search medication catalog",
-               description = "Full-text search across medication names. Returns up to `limit` results with cursor-based pagination metadata.")
+               description = "Typo-tolerant search across medication names/generic names (trigram similarity-ranked), " +
+                       "or an alphabetical browse when `q` is omitted. Returns up to `limit` results with " +
+                       "keyset cursor-based pagination metadata.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Medication list with cursor meta")
     @GetMapping
     public ApiResponse<List<MedicationView>> list(
             @Parameter(description = "Search query (name, brand, or active ingredient)") @RequestParam(required = false) String q,
+            @Parameter(description = "Opaque pagination cursor from a previous response's meta.nextCursor") @RequestParam(required = false) String cursor,
             @Parameter(description = "Max results (default 20, max 100)") @RequestParam(defaultValue = "20") int limit) {
-        return ApiResponse.ok(service.search(q, limit), service.cursorMeta(limit));
+        MedicationService.SearchPage page = service.search(q, cursor, limit);
+        return ApiResponse.ok(page.items(), new Meta(page.nextCursor(), page.effectiveLimit()));
     }
 
     @Operation(summary = "Get medication details",

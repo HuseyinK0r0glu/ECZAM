@@ -7,13 +7,25 @@ class CatalogRepository {
   final ApiClient api;
   CatalogRepository(this.api);
 
-  Future<List<CatalogMedication>> search(String query, {int limit = 20}) async {
-    final (items, _) = await api.getList(
+  /// Returns a page of catalog matches plus the opaque cursor for the next
+  /// page (null once there isn't one) — pass it back as `cursor` to page
+  /// through results ranked by typo-tolerant relevance (or alphabetically
+  /// when [query] is empty).
+  Future<(List<CatalogMedication> items, String? nextCursor)> search(
+    String query, {
+    int limit = 20,
+    String? cursor,
+  }) async {
+    final (items, meta) = await api.getList(
       '/medications',
       (j) => CatalogMedication.fromJson((j as Map).cast<String, dynamic>()),
-      query: {if (query.isNotEmpty) 'q': query, 'limit': limit},
+      query: {
+        if (query.isNotEmpty) 'q': query,
+        'limit': limit,
+        'cursor': ?cursor,
+      },
     );
-    return items;
+    return (items, meta?.nextCursor);
   }
 
   Future<CatalogMedicationDetail> get(String id) => api.getOne(
@@ -84,7 +96,7 @@ class CatalogRepository {
     String? form,
     String? barcode,
   }) async {
-    final matches = await search(name, limit: 20);
+    final (matches, _) = await search(name, limit: 20);
     final lower = name.trim().toLowerCase();
     final existing = matches.where((m) => m.name.trim().toLowerCase() == lower);
     if (existing.isNotEmpty) return existing.first;
