@@ -100,6 +100,13 @@ Every response uses `{ data, meta, error }`:
 // 404 BARCODE_NOT_FOUND → client falls back to manual entry (UC-003)
 ```
 
+Catalog search (`GET /medications?q=`) is typo-tolerant, not exact-substring-only:
+it matches `name`, `generic_name`, and `active_ingredient` via a PostgreSQL
+`pg_trgm` trigram-similarity match in addition to substring `ILIKE`, so a
+misspelled query (e.g. transposed/missing/extra letters) still surfaces the
+right medication in a 20k+-row catalog. Exact/prefix/substring hits are always
+ranked above fuzzy-only matches.
+
 ## 4. Inventory (`user-medications`)
 
 | Method | Path | Auth | Purpose | FRs |
