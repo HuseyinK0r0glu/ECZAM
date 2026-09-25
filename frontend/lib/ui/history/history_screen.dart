@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import 'package:medtrack/features/logs/log_dto.dart';
+import 'package:medtrack/features/logs/log_repository.dart';
 import 'package:medtrack/models/dose_log.dart';
 import 'package:medtrack/state/adherence.dart';
 import 'package:medtrack/state/app_state.dart';
@@ -17,6 +21,26 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   /// Day whose logs are listed below the strip; null means "today".
   DateTime? _selectedDay;
+
+  /// Server-computed streak (full history), fetched once on load. Stays null
+  /// if there's no [LogRepository] provided (e.g. older widget tests) or the
+  /// request fails — it's a supplementary stat, not load-bearing.
+  AdherenceSummary? _adherence;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadAdherence());
+  }
+
+  Future<void> _loadAdherence() async {
+    try {
+      final summary = await context.read<LogRepository>().adherence();
+      if (mounted) setState(() => _adherence = summary);
+    } catch (_) {
+      // Supplementary stat only — silently skip on error or a missing provider.
+    }
+  }
 
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
@@ -55,6 +79,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
         const SizedBox(height: 16),
         _AdherenceCard(week: week),
+        if (_adherence != null) ...[
+          const SizedBox(height: 10),
+          _StreakCard(adherence: _adherence!),
+        ],
         const SizedBox(height: 18),
         Padding(
           padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
@@ -244,6 +272,55 @@ class _AdherenceCard extends StatelessWidget {
                 fontSize: 12,
                 height: 1.45,
                 color: Color(0xD9D2F5F3),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Small stat row for the server-computed streak (full dose-log history) —
+/// deliberately modest, sitting just below the local 7-day [_AdherenceCard].
+class _StreakCard extends StatelessWidget {
+  final AdherenceSummary adherence;
+
+  const _StreakCard({required this.adherence});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: const Color(0x99FFFFFF),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A403626),
+            offset: Offset(0, 3),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.local_fire_department,
+            size: 20,
+            color: MedColors.brassMid,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Current streak: ${adherence.currentStreak} day'
+              '${adherence.currentStreak == 1 ? '' : 's'} · '
+              'Best: ${adherence.longestStreak} day'
+              '${adherence.longestStreak == 1 ? '' : 's'}',
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: MedColors.text,
               ),
             ),
           ),

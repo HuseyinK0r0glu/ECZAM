@@ -94,6 +94,7 @@ Future<void> main() async {
     expiration: expirationRepo,
     profile: profileRepo,
     ai: aiRepo,
+    logs: logRepo,
   ));
 }
 
@@ -107,6 +108,7 @@ class EczamApp extends StatelessWidget {
   final ExpirationRepository? expiration;
   final ProfileRepository? profile;
   final AiRepository? ai;
+  final LogRepository? logs;
 
   const EczamApp({
     super.key,
@@ -116,6 +118,7 @@ class EczamApp extends StatelessWidget {
     this.expiration,
     this.profile,
     this.ai,
+    this.logs,
   });
 
   @override
@@ -129,6 +132,7 @@ class EczamApp extends StatelessWidget {
         if (expiration != null) Provider.value(value: expiration!),
         if (profile != null) Provider.value(value: profile!),
         if (ai != null) Provider.value(value: ai!),
+        if (logs != null) Provider.value(value: logs!),
       ],
       child: MaterialApp(
         title: 'ECZAM',
@@ -178,5 +182,5 @@ class _Splash extends StatelessWidget {
 
 /// Backwards-compatible alias used by widget tests.
 class MedTrackApp extends EczamApp {
-  const MedTrackApp({super.key, required super.appState});
+  const MedTrackApp({super.key, required super.appState, super.logs});
 }

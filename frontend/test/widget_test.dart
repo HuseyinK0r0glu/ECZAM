@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 
+import 'package:medtrack/features/logs/log_dto.dart';
 import 'package:medtrack/main.dart';
 import 'package:medtrack/models/dose_log.dart';
 import 'package:medtrack/models/medication.dart';
@@ -299,6 +300,28 @@ void main() {
     await pumpFrames(tester, const Duration(milliseconds: 300));
     expect(find.text('Vitamin D'), findsOneWidget);
     expect(find.text('Aspirin'), findsNothing);
+  });
+
+  testWidgets('History surfaces the server-computed streak once it loads', (
+    tester,
+  ) async {
+    final state = await buildState(tester);
+    final logs = FakeLogRepository(
+      const AdherenceSummary(
+        currentStreak: 5,
+        longestStreak: 9,
+        windowDays: 14,
+        days: [],
+      ),
+    );
+    await tester.pumpWidget(EczamApp(appState: state, logs: logs));
+    await pumpFrames(tester);
+
+    await tester.tap(find.byIcon(Icons.calendar_today_outlined));
+    await pumpFrames(tester, const Duration(milliseconds: 400));
+
+    expect(find.textContaining('Current streak: 5 days'), findsOneWidget);
+    expect(find.textContaining('Best: 9 days'), findsOneWidget);
   });
 
   testWidgets('horizontal swipe toggles the cabinet grouping mode', (

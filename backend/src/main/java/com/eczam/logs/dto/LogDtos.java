@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 public final class LogDtos {
 
@@ -22,6 +23,13 @@ public final class LogDtos {
                           OffsetDateTime takenAt, BigDecimal quantityUsed, String notes) {}
 
     public record LogResult(LogView log, BigDecimal newQuantity, boolean lowStock) {}
+
+    /** One day's expected-vs-taken dose count (see {@code AdherenceService} for the rule). */
+    public record DayAdherence(String date, int expected, int taken) {}
+
+    /** `GET /medication-logs/adherence` response — see {@code AdherenceService}. */
+    public record AdherenceSummary(int currentStreak, int longestStreak, int windowDays,
+                                   List<DayAdherence> days) {}
 
     private LogDtos() {}
 }
