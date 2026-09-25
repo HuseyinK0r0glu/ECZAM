@@ -58,8 +58,10 @@ class BackendMedicationRepository implements MedicationRepository {
             .toList();
         await mirror.replaceServerMeds(assembled);
         // Read back so locally-cached presentation data + any still-pending
-        // offline creates are merged into one ordered list.
-        return mirror.getMedications();
+        // offline creates are merged into one ordered list. Must be awaited
+        // (not returned directly) so a failure here is caught below instead
+        // of escaping the try block and crashing the caller.
+        return await mirror.getMedications();
       } catch (_) {
         // Reads degrade gracefully to the cache on any failure (offline,
         // timeout, or a 401 while the auth gate is already redirecting to
