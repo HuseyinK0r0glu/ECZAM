@@ -47,7 +47,7 @@ class ScheduleRepository {
         '/schedules/$scheduleId',
         {
           'scheduledTimes': reminderMinutes.map(minuteToHHmm).toList(),
-          if (dosageAmount != null) 'dosageAmount': dosageAmount,
+          'dosageAmount': ?dosageAmount,
         },
         (j) => ScheduleView.fromJson((j as Map).cast<String, dynamic>()),
       );

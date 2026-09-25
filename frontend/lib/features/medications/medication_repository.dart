@@ -65,11 +65,11 @@ class CatalogRepository {
         '/medications',
         {
           'name': name,
-          if (genericName != null) 'genericName': genericName,
-          if (manufacturer != null) 'manufacturer': manufacturer,
-          if (barcode != null) 'barcode': barcode,
-          if (form != null) 'form': form,
-          if (strength != null) 'strength': strength,
+          'genericName': ?genericName,
+          'manufacturer': ?manufacturer,
+          'barcode': ?barcode,
+          'form': ?form,
+          'strength': ?strength,
         },
         (j) => CatalogMedicationDetail.fromJson(
                 (j as Map).cast<String, dynamic>())

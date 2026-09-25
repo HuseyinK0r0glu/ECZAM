@@ -14,14 +14,13 @@ class _ChatMessage {
   final bool fromUser;
   String text;
   final List<String> citations;
-  bool grounded;
+  bool grounded = true;
   bool streaming;
 
   _ChatMessage({
     required this.fromUser,
     this.text = '',
     List<String>? citations,
-    this.grounded = true,
     this.streaming = false,
   }) : citations = citations ?? [];
 }

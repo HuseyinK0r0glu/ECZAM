@@ -26,10 +26,10 @@ class ProfileRepository {
       api.patchJson(
         '/users/me/preferences',
         {
-          if (push != null) 'push': push,
-          if (email != null) 'email': email,
-          if (lowStockThreshold != null) 'lowStockThreshold': lowStockThreshold,
-          if (expiryWarningDays != null) 'expiryWarningDays': expiryWarningDays,
+          'push': ?push,
+          'email': ?email,
+          'lowStockThreshold': ?lowStockThreshold,
+          'expiryWarningDays': ?expiryWarningDays,
         },
         (j) => UserProfile.fromJson((j as Map).cast<String, dynamic>()),
       );

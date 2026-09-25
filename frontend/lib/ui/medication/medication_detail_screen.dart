@@ -51,15 +51,19 @@ class _MedicationDetailScreenState extends State<MedicationDetailScreen> {
   Future<void> _load() async {
     try {
       final d = await context.read<CatalogRepository>().leaflet(widget.catalogId);
-      if (mounted) setState(() {
-        _detail = d;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _detail = d;
+          _loading = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() {
-        _error = 'Could not load the leaflet.';
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Could not load the leaflet.';
+          _loading = false;
+        });
+      }
     }
   }
 

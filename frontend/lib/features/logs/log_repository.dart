@@ -21,9 +21,9 @@ class LogRepository {
         {
           'userMedicationId': userMedicationId,
           'quantityUsed': quantityUsed,
-          if (scheduleId != null) 'scheduleId': scheduleId,
-          if (notes != null) 'notes': notes,
-          if (clientRequestId != null) 'clientRequestId': clientRequestId,
+          'scheduleId': ?scheduleId,
+          'notes': ?notes,
+          'clientRequestId': ?clientRequestId,
         },
         (j) => LogResult.fromJson((j as Map).cast<String, dynamic>()),
       );

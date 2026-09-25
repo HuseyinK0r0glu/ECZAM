@@ -23,7 +23,7 @@ class AiRepository {
       '/ai/chat',
       data: {
         'message': message,
-        if (medicationId != null) 'medicationId': medicationId,
+        'medicationId': ?medicationId,
         if (history.isNotEmpty) 'history': history,
       },
       options: Options(

@@ -29,15 +29,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _load() async {
     try {
       final p = await context.read<ProfileRepository>().me();
-      if (mounted) setState(() {
-        _profile = p;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _profile = p;
+          _loading = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() {
-        _error = 'Could not load your profile.';
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Could not load your profile.';
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -109,7 +113,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: SwitchListTile(
             value: prefs.push,
             onChanged: _setPush,
-            activeColor: MedColors.teal,
+            activeThumbColor: MedColors.teal,
             contentPadding: EdgeInsets.zero,
             title: const Text('Push reminders'),
             subtitle: const Text(

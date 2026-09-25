@@ -24,7 +24,10 @@ void main() {
 
     expect(events, hasLength(4));
     expect((events[0] as TokenEvent).text, 'Ibuprofen');
-    expect((events[1] as TokenEvent).text, 'is an NSAID'); // leading space stripped
+    // Only the single SSE-delimiter space after "data:" is stripped; the second
+    // space is part of the token text, needed so concatenation with the prior
+    // token reads "Ibuprofen is an NSAID" instead of "Ibuprofenis an NSAID".
+    expect((events[1] as TokenEvent).text, ' is an NSAID');
     expect((events[2] as CitationEvent).section, '4. Yan etkiler');
     expect((events[3] as DoneEvent).grounded, isTrue);
   });

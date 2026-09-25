@@ -11,7 +11,7 @@ class ExpirationRepository {
     final (items, _) = await api.getList(
       '/expiration/expiring-soon',
       (j) => InventoryItem.fromJson((j as Map).cast<String, dynamic>()),
-      query: {if (days != null) 'days': days},
+      query: {'days': ?days},
     );
     return items;
   }

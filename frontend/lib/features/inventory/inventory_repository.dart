@@ -32,10 +32,10 @@ class InventoryRepository {
         {
           'medicationId': medicationId,
           'quantity': quantity,
-          if (unit != null) 'unit': unit,
+          'unit': ?unit,
           if (expirationDate != null)
             'expirationDate': Medication.dateToIso(expirationDate),
-          if (notes != null) 'notes': notes,
+          'notes': ?notes,
         },
         (j) => InventoryItem.fromJson((j as Map).cast<String, dynamic>()),
       );
@@ -51,13 +51,13 @@ class InventoryRepository {
       api.patchJson(
         '/user-medications/$id',
         {
-          if (quantity != null) 'quantity': quantity,
-          if (unit != null) 'unit': unit,
+          'quantity': ?quantity,
+          'unit': ?unit,
           if (expirationDate != null)
             'expirationDate': Medication.dateToIso(expirationDate)
           else if (clearExpiration)
             'expirationDate': null,
-          if (notes != null) 'notes': notes,
+          'notes': ?notes,
         },
         (j) => InventoryItem.fromJson((j as Map).cast<String, dynamic>()),
       );
