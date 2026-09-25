@@ -111,6 +111,10 @@ public class CatalogSeedRunner implements ApplicationRunner {
                 }
 
                 String activeIngredient = SourceText.cleanActiveIngredient(text(row, "Active_Ingredient"));
+                // generic_name is VARCHAR(255); active_ingredient is VARCHAR(512) and can run
+                // longer for multi-component combo drugs (e.g. combination vaccines) — truncate
+                // the copy that goes into the narrower column rather than overflowing it.
+                String genericName = truncate(activeIngredient, 255);
                 List<String> categoryPath = SourceText.cleanCategoryPath(
                         text(row, "Category_1"), text(row, "Category_2"), text(row, "Category_3"),
                         text(row, "Category_4"), text(row, "Category_5"));
@@ -132,10 +136,10 @@ public class CatalogSeedRunner implements ApplicationRunner {
                 String atcGroup = SourceText.atcGroup(atcCode);
 
                 if (gtin != null) {
-                    withGtin.add(new Object[]{name, activeIngredient, barcode, gtin, atcCode, atcGroup,
+                    withGtin.add(new Object[]{name, genericName, barcode, gtin, atcCode, atcGroup,
                             activeIngredient, categoryJson, leafletRaw, leafletSectionsJson, truncated, leafletHash});
                 } else {
-                    withoutGtin.add(new Object[]{name, activeIngredient, barcode, atcCode, atcGroup,
+                    withoutGtin.add(new Object[]{name, genericName, barcode, atcCode, atcGroup,
                             activeIngredient, categoryJson, leafletRaw, leafletSectionsJson, truncated, leafletHash});
                 }
 
@@ -173,6 +177,10 @@ public class CatalogSeedRunner implements ApplicationRunner {
 
     private static String blankToNull(String s) {
         return (s == null || s.isBlank()) ? null : s.trim();
+    }
+
+    private static String truncate(String s, int max) {
+        return (s != null && s.length() > max) ? s.substring(0, max) : s;
     }
 
     private static String sha256(String s) {
