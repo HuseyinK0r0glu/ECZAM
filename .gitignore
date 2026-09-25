@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# --- Local machine-specific overrides ---
+backend/docker-compose.override.yml
+
 # --- Backend (Java / Maven) ---
 target/
 *.class

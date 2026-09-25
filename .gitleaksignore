@@ -1,0 +1,7 @@
+# False positives verified and ignored by fingerprint (commit:file:rule-id:startLine).
+# Generate a fingerprint for a new false positive by re-running gitleaks and
+# copying the "Fingerprint" field it reports for that finding.
+
+# generic-api-key false positive: docs prose listing what counts as a secret
+# ("password hashes, JWT secret, VAPID/private keys, API keys") — not a real key.
+c53ecc82da0fb188e9e11c2c73c744794874a3c0:docs/security-requirements.md:generic-api-key:19
