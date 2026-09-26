@@ -122,6 +122,8 @@ String _csvEscape(String field) {
   if (!needsQuoting) return field;
   final escaped = field.replaceAll('"', '""');
   return '"$escaped"';
+}
+
 /// One day's expected-vs-taken dose count within an [AdherenceSummary].
 class AdherenceDay {
   final DateTime date;
