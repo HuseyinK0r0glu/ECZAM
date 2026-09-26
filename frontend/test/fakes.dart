@@ -1,5 +1,8 @@
 import 'package:image_picker/image_picker.dart';
+import 'package:medtrack/core/api/api_client.dart';
 import 'package:medtrack/data/medication_repository.dart';
+import 'package:medtrack/features/logs/log_dto.dart';
+import 'package:medtrack/features/logs/log_repository.dart';
 import 'package:medtrack/models/dose_log.dart';
 import 'package:medtrack/models/medication.dart';
 import 'package:medtrack/services/notification_service.dart';
@@ -137,6 +140,51 @@ class FakeNotificationService extends NotificationService {
 
   @override
   Future<bool> launchedFromNotification() async => false;
+}
+
+/// In-memory [LogRepository] fake for the dose-history export flow. `implements`
+/// (not `extends`) so no real [ApiClient]/`TokenStore` has to be constructed —
+/// mirrors the `implements MedicationRepository` fake above.
+class FakeLogRepository implements LogRepository {
+  /// Canned response for the next [exportHistory] call.
+  List<ExportLogEntry> exportResult = const [];
+
+  /// The [from]/[to] passed to the most recent [exportHistory] call, for
+  /// assertions.
+  DateTime? lastFrom;
+  DateTime? lastTo;
+
+  @override
+  ApiClient get api => throw UnimplementedError('not used by the fake');
+
+  @override
+  Future<LogResult> logTaken({
+    required String userMedicationId,
+    double quantityUsed = 1,
+    String? scheduleId,
+    String? notes,
+    String? clientRequestId,
+  }) =>
+      throw UnimplementedError('not used by the fake');
+
+  @override
+  Future<List<LogView>> history(
+    String userMedicationId, {
+    DateTime? from,
+    DateTime? to,
+    int limit = 50,
+  }) async =>
+      const [];
+
+  @override
+  Future<List<ExportLogEntry>> exportHistory({
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    lastFrom = from;
+    lastTo = to;
+    return exportResult;
+  }
 }
 
 /// No-op photo layer: path_provider/image_picker channels don't exist here.

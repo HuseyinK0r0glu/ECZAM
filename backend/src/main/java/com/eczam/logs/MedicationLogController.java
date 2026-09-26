@@ -55,4 +55,21 @@ public class MedicationLogController {
             @Parameter(description = "Max entries to return (default 50)") @RequestParam(defaultValue = "50") int limit) {
         return ApiResponse.ok(service.history(userId, userMedicationId, from, to, limit));
     }
+
+    @Operation(summary = "Export dose history across all medications",
+               description = "Returns every dose log for the caller across all their medications, newest first, " +
+                             "with the medication name resolved for each entry — for handing a doctor/pharmacist a " +
+                             "combined record. Defaults to the last 90 days when neither `from` nor `to` is given. " +
+                             "The requested range is capped at 365 days; a wider explicit range is rejected with 422.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Export rows"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "422", description = "Date range exceeds 365 days or `from` is after `to`", content = @Content)
+    })
+    @GetMapping("/export")
+    public ApiResponse<List<ExportLogEntry>> export(
+            @CurrentUser UUID userId,
+            @Parameter(description = "Start of date range (ISO-8601); defaults to 90 days before the effective `to`") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
+            @Parameter(description = "End of date range (ISO-8601); defaults to now") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to) {
+        return ApiResponse.ok(service.exportHistory(userId, from, to));
+    }
 }

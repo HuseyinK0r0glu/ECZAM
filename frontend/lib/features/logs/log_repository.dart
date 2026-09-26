@@ -46,4 +46,23 @@ class LogRepository {
     );
     return items;
   }
+
+  /// Cross-medication dose-history export (`GET /medication-logs/export`) — a
+  /// hand-off record for a doctor/pharmacist. Defaults to the last 90 days when
+  /// neither [from] nor [to] is given; the backend rejects an explicit range
+  /// wider than 365 days with a 422 `ApiException`.
+  Future<List<ExportLogEntry>> exportHistory({
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final (items, _) = await api.getList(
+      '/medication-logs/export',
+      (j) => ExportLogEntry.fromJson((j as Map).cast<String, dynamic>()),
+      query: {
+        if (from != null) 'from': from.toUtc().toIso8601String(),
+        if (to != null) 'to': to.toUtc().toIso8601String(),
+      },
+    );
+    return items;
+  }
 }

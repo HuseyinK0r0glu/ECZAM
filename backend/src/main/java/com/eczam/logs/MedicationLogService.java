@@ -14,9 +14,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class MedicationLogService {
@@ -87,6 +91,43 @@ public class MedicationLogService {
                 .orElseThrow(() -> ApiException.notFound("Inventory entry not found"));
         return logs.history(umId, from, to, PageRequest.of(0, limit))
                 .map(MedicationLogService::toView).getContent();
+    }
+
+    /** Widest window an export request may span, even with an explicit wide range. */
+    private static final long MAX_EXPORT_RANGE_DAYS = 365;
+    private static final long DEFAULT_EXPORT_RANGE_DAYS = 90;
+
+    /** Cross-medication dose-history export (UC: hand a doctor/pharmacist a record). */
+    @Transactional(readOnly = true)
+    public List<ExportLogEntry> exportHistory(UUID userId, OffsetDateTime from, OffsetDateTime to) {
+        OffsetDateTime effectiveTo = to != null ? to : OffsetDateTime.now();
+        OffsetDateTime effectiveFrom = from != null ? from : effectiveTo.minusDays(DEFAULT_EXPORT_RANGE_DAYS);
+
+        if (effectiveFrom.isAfter(effectiveTo)) {
+            throw ApiException.badRequest(ErrorCode.VALIDATION_FAILED, "`from` must not be after `to`");
+        }
+        if (Duration.between(effectiveFrom, effectiveTo).toDays() > MAX_EXPORT_RANGE_DAYS) {
+            throw ApiException.badRequest(ErrorCode.VALIDATION_FAILED,
+                    "Export date range cannot exceed " + MAX_EXPORT_RANGE_DAYS + " days");
+        }
+
+        List<UserMedication> owned = inventory.findByUserIdOrderByAddedAtDesc(userId);
+        if (owned.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, String> medicationNameByUmId = owned.stream()
+                .collect(Collectors.toMap(UserMedication::getId, um -> um.getMedication().getName()));
+
+        List<MedicationLog> rows = logs.findAllForUserMedicationIds(
+                new ArrayList<>(medicationNameByUmId.keySet()), effectiveFrom, effectiveTo);
+
+        return rows.stream()
+                .map(l -> new ExportLogEntry(
+                        l.getTakenAt().toString(),
+                        medicationNameByUmId.get(l.getUserMedicationId()),
+                        l.getQuantityUsed(),
+                        l.getNotes()))
+                .toList();
     }
 
     static LogView toView(MedicationLog l) {

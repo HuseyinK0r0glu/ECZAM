@@ -23,5 +23,13 @@ public final class LogDtos {
 
     public record LogResult(LogView log, BigDecimal newQuantity, boolean lowStock) {}
 
+    // Cross-medication export row (GET /medication-logs/export) — flattened for a
+    // doctor/pharmacist hand-off; medicationName is resolved server-side so the
+    // client can build a CSV without a second round trip. takenAt is serialized as
+    // an ISO-8601 string (OffsetDateTime#toString()) to keep this endpoint a plain
+    // JSON API entry per CLAUDE.md's envelope convention (no CSV/file on the wire).
+    public record ExportLogEntry(String takenAt, String medicationName,
+                                 BigDecimal quantityUsed, String notes) {}
+
     private LogDtos() {}
 }

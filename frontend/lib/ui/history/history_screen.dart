@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import 'package:medtrack/features/logs/log_dto.dart';
+import 'package:medtrack/features/logs/log_repository.dart';
 import 'package:medtrack/models/dose_log.dart';
 import 'package:medtrack/state/adherence.dart';
 import 'package:medtrack/state/app_state.dart';
@@ -18,8 +21,98 @@ class _HistoryScreenState extends State<HistoryScreen> {
   /// Day whose logs are listed below the strip; null means "today".
   DateTime? _selectedDay;
 
+  /// True while a `GET /medication-logs/export` request is in flight.
+  bool _exporting = false;
+
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
+
+  /// Fetches the cross-medication dose history (last 90 days, per the backend
+  /// default) and shows it as a CSV preview the user can copy to hand to a
+  /// doctor or pharmacist.
+  Future<void> _exportHistory(BuildContext context) async {
+    final repo = context.read<LogRepository>();
+    setState(() => _exporting = true);
+    try {
+      final entries = await repo.exportHistory();
+      final csv = exportLogEntriesToCsv(entries);
+      if (!context.mounted) return;
+      await _showExportDialog(context, csv, entries.length);
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not export dose history.')),
+      );
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<void> _showExportDialog(
+    BuildContext context,
+    String csv,
+    int count,
+  ) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Dose history export'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                count == 0
+                    ? 'No doses logged in this period.'
+                    : '$count dose${count == 1 ? '' : 's'} — CSV preview:',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: MedColors.textMuted,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                constraints: const BoxConstraints(maxHeight: 260),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0x0D000000),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: SingleChildScrollView(
+                  child: SelectableText(
+                    csv,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Close'),
+          ),
+          FilledButton.icon(
+            icon: const Icon(Icons.copy, size: 18),
+            label: const Text('Copy to clipboard'),
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: csv));
+              if (!dialogContext.mounted) return;
+              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                const SnackBar(content: Text('Copied to clipboard.')),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,18 +151,36 @@ class _HistoryScreenState extends State<HistoryScreen> {
         const SizedBox(height: 18),
         Padding(
           padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('RECENT LOG', style: MedText.sectionLabel),
-              const SizedBox(height: 3),
-              Text(
-                'Showing ${_dayLabel(selected)}',
-                style: const TextStyle(
-                  fontSize: 10.5,
-                  fontStyle: FontStyle.italic,
-                  color: MedColors.textFaint,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('RECENT LOG', style: MedText.sectionLabel),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Showing ${_dayLabel(selected)}',
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontStyle: FontStyle.italic,
+                        color: MedColors.textFaint,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              IconButton(
+                icon: _exporting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.ios_share, color: MedColors.textMuted),
+                tooltip: 'Export dose history for a doctor visit',
+                onPressed: _exporting ? null : () => _exportHistory(context),
               ),
             ],
           ),
