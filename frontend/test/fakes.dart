@@ -1,6 +1,5 @@
 import 'package:image_picker/image_picker.dart';
 import 'package:medtrack/core/api/api_client.dart';
-import 'package:medtrack/core/token_store.dart';
 import 'package:medtrack/data/medication_repository.dart';
 import 'package:medtrack/features/logs/log_dto.dart';
 import 'package:medtrack/features/logs/log_repository.dart';
@@ -143,6 +142,69 @@ class FakeNotificationService extends NotificationService {
   Future<bool> launchedFromNotification() async => false;
 }
 
+/// In-memory [LogRepository] fake for the dose-history export and adherence-
+/// streak flows. `implements` (not `extends`) so no real [ApiClient]/
+/// `TokenStore` has to be constructed — mirrors the `implements
+/// MedicationRepository` fake above.
+class FakeLogRepository implements LogRepository {
+  /// [adherenceResult] is optional — omit it for tests that don't care about
+  /// the streak stat (it defaults to an all-zero summary).
+  FakeLogRepository([AdherenceSummary? adherenceResult])
+      : adherenceResult = adherenceResult ??
+            const AdherenceSummary(
+              currentStreak: 0,
+              longestStreak: 0,
+              windowDays: 0,
+              days: [],
+            );
+
+  /// Canned response for the next [exportHistory] call.
+  List<ExportLogEntry> exportResult = const [];
+
+  /// The [from]/[to] passed to the most recent [exportHistory] call, for
+  /// assertions.
+  DateTime? lastFrom;
+  DateTime? lastTo;
+
+  /// Canned response for [adherence].
+  AdherenceSummary adherenceResult;
+
+  @override
+  ApiClient get api => throw UnimplementedError('not used by the fake');
+
+  @override
+  Future<LogResult> logTaken({
+    required String userMedicationId,
+    double quantityUsed = 1,
+    String? scheduleId,
+    String? notes,
+    String? clientRequestId,
+  }) =>
+      throw UnimplementedError('not used by the fake');
+
+  @override
+  Future<List<LogView>> history(
+    String userMedicationId, {
+    DateTime? from,
+    DateTime? to,
+    int limit = 50,
+  }) async =>
+      const [];
+
+  @override
+  Future<List<ExportLogEntry>> exportHistory({
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    lastFrom = from;
+    lastTo = to;
+    return exportResult;
+  }
+
+  @override
+  Future<AdherenceSummary> adherence() async => adherenceResult;
+}
+
 /// No-op photo layer: path_provider/image_picker channels don't exist here.
 class FakePhotoService extends PhotoService {
   @override
@@ -154,16 +216,4 @@ class FakePhotoService extends PhotoService {
 
   @override
   Future<void> delete(String? fileName) async {}
-}
-
-/// Returns a canned [AdherenceSummary] with no network I/O. LogRepository
-/// isn't behind an interface, so this subclasses it and overrides just the
-/// one method HistoryScreen calls; the underlying ApiClient is never used.
-class FakeLogRepository extends LogRepository {
-  final AdherenceSummary summary;
-
-  FakeLogRepository(this.summary) : super(ApiClient(tokenStore: TokenStore()));
-
-  @override
-  Future<AdherenceSummary> adherence() async => summary;
 }

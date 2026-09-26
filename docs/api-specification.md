@@ -145,6 +145,7 @@ Every response uses `{ data, meta, error }`:
 |---|---|:--:|---|---|
 | POST | `/api/v1/medication-logs` | ✓ | Log a dose → **atomic** insert + inventory decrement | FR-040,041,042,043 |
 | GET | `/api/v1/medication-logs` | ✓ | History (`?userMedicationId=&from=&to=&cursor=&limit=`) | FR-044 |
+| GET | `/api/v1/medication-logs/export` | ✓ | Cross-medication history for a doctor/pharmacist hand-off (`?from=&to=`) | FR-044 |
 | GET | `/api/v1/medication-logs/adherence` | ✓ | Server-computed adherence streak over the full log history | FR-044 |
 
 ```jsonc
@@ -152,6 +153,13 @@ Every response uses `{ data, meta, error }`:
 { "userMedicationId": "…", "quantityUsed": 1, "scheduleId": "…", "notes": null }
 // 201 → { "data": { "log": { "id": "…", "takenAt": "…" }, "newQuantity": 29, "lowStock": false } }
 // 422 INSUFFICIENT_STOCK (quantity would go negative)
+
+// GET /api/v1/medication-logs/export?from=…&to=…
+// Every dose log across ALL of the caller's medications, newest first, with the
+// medication name resolved per row — unpaginated (bounded window, small result set).
+// `from`/`to` default to the last 90 days when neither is given; the requested
+// range is capped at 365 days — a wider explicit range → 422 VALIDATION_FAILED.
+// 200 → { "data": [ { "takenAt": "…", "medicationName": "…", "quantityUsed": 1, "notes": null } ] }
 
 // GET /api/v1/medication-logs/adherence
 // 200 → { "data": { "currentStreak": 5, "longestStreak": 9, "windowDays": 14,
