@@ -14,11 +14,15 @@ public interface MedicationLogRepository extends JpaRepository<MedicationLog, UU
 
     Optional<MedicationLog> findByUserMedicationIdAndClientRequestId(UUID userMedicationId, String clientRequestId);
 
+    // CAST(:from/:to AS timestamp) forces an explicit type on each bind parameter —
+    // without it, a null :from/:to (the common case: history() called with no date
+    // range) leaves Postgres unable to infer the parameter's type and it fails every
+    // such call with "could not determine data type of parameter $n" (SQLState 42P18).
     @Query("""
            SELECT l FROM MedicationLog l
            WHERE l.userMedicationId = :umId
-             AND (:from IS NULL OR l.takenAt >= :from)
-             AND (:to IS NULL OR l.takenAt <= :to)
+             AND (CAST(:from AS timestamp) IS NULL OR l.takenAt >= :from)
+             AND (CAST(:to AS timestamp) IS NULL OR l.takenAt <= :to)
            ORDER BY l.takenAt DESC
            """)
     Page<MedicationLog> history(@Param("umId") UUID umId,
