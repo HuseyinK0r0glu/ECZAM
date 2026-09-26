@@ -15,11 +15,15 @@ public interface MedicationLogRepository extends JpaRepository<MedicationLog, UU
 
     Optional<MedicationLog> findByUserMedicationIdAndClientRequestId(UUID userMedicationId, String clientRequestId);
 
+    // CAST(:from/:to AS timestamp) forces an explicit type on each bind parameter —
+    // without it, a null :from/:to (the common case: history() called with no date
+    // range) leaves Postgres unable to infer the parameter's type and it fails every
+    // such call with "could not determine data type of parameter $n" (SQLState 42P18).
     @Query("""
            SELECT l FROM MedicationLog l
            WHERE l.userMedicationId = :umId
-             AND (:from IS NULL OR l.takenAt >= :from)
-             AND (:to IS NULL OR l.takenAt <= :to)
+             AND (CAST(:from AS timestamp) IS NULL OR l.takenAt >= :from)
+             AND (CAST(:to AS timestamp) IS NULL OR l.takenAt <= :to)
            ORDER BY l.takenAt DESC
            """)
     Page<MedicationLog> history(@Param("umId") UUID umId,
@@ -40,4 +44,21 @@ public interface MedicationLogRepository extends JpaRepository<MedicationLog, UU
     List<MedicationLog> findAllForUserMedicationIds(@Param("userMedicationIds") List<UUID> userMedicationIds,
                                                      @Param("from") OffsetDateTime from,
                                                      @Param("to") OffsetDateTime to);
+
+    /**
+     * A user's dose logs in an instant range, across all their inventory items.
+     * {@code MedicationLog} only stores the {@code user_medications.id} it was
+     * logged against (no direct JPA association), so ownership is joined via a
+     * subquery on {@code UserMedication.userId} — used by {@link AdherenceService}
+     * to compute streaks over the full, never-purged log history.
+     */
+    @Query("""
+           SELECT l FROM MedicationLog l
+           WHERE l.userMedicationId IN (SELECT um.id FROM UserMedication um WHERE um.userId = :userId)
+             AND l.takenAt >= :from
+             AND l.takenAt <= :to
+           """)
+    List<MedicationLog> findForUserInRange(@Param("userId") UUID userId,
+                                           @Param("from") OffsetDateTime from,
+                                           @Param("to") OffsetDateTime to);
 }

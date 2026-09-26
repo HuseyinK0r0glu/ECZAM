@@ -182,5 +182,5 @@ class _Splash extends StatelessWidget {
 
 /// Backwards-compatible alias used by widget tests.
 class MedTrackApp extends EczamApp {
-  const MedTrackApp({super.key, required super.appState});
+  const MedTrackApp({super.key, required super.appState, super.logs});
 }

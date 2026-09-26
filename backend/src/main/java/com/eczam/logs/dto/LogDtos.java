@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 public final class LogDtos {
 
@@ -30,6 +31,13 @@ public final class LogDtos {
     // JSON API entry per CLAUDE.md's envelope convention (no CSV/file on the wire).
     public record ExportLogEntry(String takenAt, String medicationName,
                                  BigDecimal quantityUsed, String notes) {}
+
+    /** One day's expected-vs-taken dose count (see {@code AdherenceService} for the rule). */
+    public record DayAdherence(String date, int expected, int taken) {}
+
+    /** `GET /medication-logs/adherence` response — see {@code AdherenceService}. */
+    public record AdherenceSummary(int currentStreak, int longestStreak, int windowDays,
+                                   List<DayAdherence> days) {}
 
     private LogDtos() {}
 }

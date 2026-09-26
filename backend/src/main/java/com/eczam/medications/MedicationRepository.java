@@ -14,10 +14,15 @@ public interface MedicationRepository extends JpaRepository<Medication, UUID> {
     Optional<Medication> findByBarcode(String barcode);
     Optional<Medication> findByGtin(String gtin);
 
+    // CAST(:q AS string) forces an explicit text type on the bind parameter — without
+    // it, Postgres can't infer a type for a NULL :q used inside CONCAT(), and (at
+    // least on this driver/version) resolves LOWER(...) to its bytea overload instead
+    // of text, failing every call made with a blank/absent search query with
+    // "function lower(bytea) does not exist".
     @Query("""
            SELECT m FROM Medication m
-           WHERE :q IS NULL OR LOWER(m.name) LIKE LOWER(CONCAT('%', :q, '%'))
-              OR LOWER(m.genericName) LIKE LOWER(CONCAT('%', :q, '%'))
+           WHERE CAST(:q AS string) IS NULL OR LOWER(m.name) LIKE LOWER(CONCAT('%', CAST(:q AS string), '%'))
+              OR LOWER(m.genericName) LIKE LOWER(CONCAT('%', CAST(:q AS string), '%'))
            ORDER BY m.name ASC
            """)
     Page<Medication> search(@Param("q") String q, Pageable pageable);

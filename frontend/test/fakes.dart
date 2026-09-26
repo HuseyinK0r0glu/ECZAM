@@ -142,10 +142,22 @@ class FakeNotificationService extends NotificationService {
   Future<bool> launchedFromNotification() async => false;
 }
 
-/// In-memory [LogRepository] fake for the dose-history export flow. `implements`
-/// (not `extends`) so no real [ApiClient]/`TokenStore` has to be constructed —
-/// mirrors the `implements MedicationRepository` fake above.
+/// In-memory [LogRepository] fake for the dose-history export and adherence-
+/// streak flows. `implements` (not `extends`) so no real [ApiClient]/
+/// `TokenStore` has to be constructed — mirrors the `implements
+/// MedicationRepository` fake above.
 class FakeLogRepository implements LogRepository {
+  /// [adherenceResult] is optional — omit it for tests that don't care about
+  /// the streak stat (it defaults to an all-zero summary).
+  FakeLogRepository([AdherenceSummary? adherenceResult])
+      : adherenceResult = adherenceResult ??
+            const AdherenceSummary(
+              currentStreak: 0,
+              longestStreak: 0,
+              windowDays: 0,
+              days: [],
+            );
+
   /// Canned response for the next [exportHistory] call.
   List<ExportLogEntry> exportResult = const [];
 
@@ -153,6 +165,9 @@ class FakeLogRepository implements LogRepository {
   /// assertions.
   DateTime? lastFrom;
   DateTime? lastTo;
+
+  /// Canned response for [adherence].
+  AdherenceSummary adherenceResult;
 
   @override
   ApiClient get api => throw UnimplementedError('not used by the fake');
@@ -185,6 +200,9 @@ class FakeLogRepository implements LogRepository {
     lastTo = to;
     return exportResult;
   }
+
+  @override
+  Future<AdherenceSummary> adherence() async => adherenceResult;
 }
 
 /// No-op photo layer: path_provider/image_picker channels don't exist here.

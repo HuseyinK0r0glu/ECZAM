@@ -23,7 +23,12 @@ import java.util.UUID;
 public class MedicationLogController {
 
     private final MedicationLogService service;
-    public MedicationLogController(MedicationLogService service) { this.service = service; }
+    private final AdherenceService adherenceService;
+
+    public MedicationLogController(MedicationLogService service, AdherenceService adherenceService) {
+        this.service = service;
+        this.adherenceService = adherenceService;
+    }
 
     @Operation(summary = "Log a dose",
                description = "Records that a dose was taken. Atomically decrements `user_medications.quantity` by `quantityUsed`. " +
@@ -71,5 +76,18 @@ public class MedicationLogController {
             @Parameter(description = "Start of date range (ISO-8601); defaults to 90 days before the effective `to`") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
             @Parameter(description = "End of date range (ISO-8601); defaults to now") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to) {
         return ApiResponse.ok(service.exportHistory(userId, from, to));
+    }
+
+    @Operation(summary = "Get adherence streaks",
+               description = "Server-computed adherence streak summary over the user's full, never-purged dose-log " +
+                             "history (bounded to the last 90 days, or since the earliest schedule's startsOn if " +
+                             "more recent). Unlike the client's 7-day local mirror, this can reflect a real " +
+                             "multi-week streak. See AdherenceService for the exact day-classification rule.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Adherence streak summary")
+    })
+    @GetMapping("/adherence")
+    public ApiResponse<AdherenceSummary> adherence(@CurrentUser UUID userId) {
+        return ApiResponse.ok(adherenceService.compute(userId));
     }
 }
