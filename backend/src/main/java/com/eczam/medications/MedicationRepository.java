@@ -1,10 +1,7 @@
 package com.eczam.medications;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -14,20 +11,29 @@ public interface MedicationRepository extends JpaRepository<Medication, UUID> {
     Optional<Medication> findByBarcode(String barcode);
     Optional<Medication> findByGtin(String gtin);
 
-    // CAST(:q AS string) forces an explicit text type on the bind parameter — without
-    // it, Postgres can't infer a type for a NULL :q used inside CONCAT(), and (at
-    // least on this driver/version) resolves LOWER(...) to its bytea overload instead
-    // of text, failing every call made with a blank/absent search query with
-    // "function lower(bytea) does not exist".
-    @Query("""
-           SELECT m FROM Medication m
-           WHERE CAST(:q AS string) IS NULL OR LOWER(m.name) LIKE LOWER(CONCAT('%', CAST(:q AS string), '%'))
-              OR LOWER(m.genericName) LIKE LOWER(CONCAT('%', CAST(:q AS string), '%'))
-           ORDER BY m.name ASC
-           """)
-    Page<Medication> search(@Param("q") String q, Pageable pageable);
+    // Catalog free-text search (GET /medications?q=) lives in
+    // MedicationSearchRepository — it needs keyset pagination on a computed
+    // trigram-similarity score, which a derived/JPQL query can't express.
 
     /** Real-leaflet rows still awaiting embedding — drives the Stage B seed (resumable). */
     @Query("SELECT m.id FROM Medication m WHERE m.leafletRaw IS NOT NULL AND m.vectorIndexed = false ORDER BY m.id")
     List<UUID> findUnindexedLeafletIds();
+
+    /** Interface projection for the native GROUP BY below (col aliases `category`/`cnt` map to the getters). */
+    interface CategoryCount {
+        String getCategory();
+        long getCnt();
+    }
+
+    // Distinct top-level categories (first element of category_path) with medication counts,
+    // most-common first. Rows with no category_path (or an empty one) are excluded — they have
+    // no top-level category to report and must never be attributed to any bucket.
+    @Query(value = """
+           SELECT category_path->>0 AS category, count(*) AS cnt
+           FROM medications
+           WHERE category_path IS NOT NULL AND jsonb_array_length(category_path) > 0
+           GROUP BY category_path->>0
+           ORDER BY cnt DESC
+           """, nativeQuery = true)
+    List<CategoryCount> findCategoryCounts();
 }

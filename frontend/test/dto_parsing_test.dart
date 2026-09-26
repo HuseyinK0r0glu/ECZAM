@@ -109,6 +109,29 @@ void main() {
       expect(h.section, 'storage');
       expect(h.snippet, 'Oda...');
     });
+
+    test('CatalogMedication parses categoryPath', () {
+      final m = CatalogMedication.fromJson({
+        'id': 'med1',
+        'name': 'ARMANAKS',
+        'categoryPath': ['Kas İskelet Sistemi', 'Non-steroid'],
+      });
+      expect(m.categoryPath, ['Kas İskelet Sistemi', 'Non-steroid']);
+    });
+
+    test('CatalogMedication with no category_path parses to null', () {
+      final m = CatalogMedication.fromJson({'id': 'med1', 'name': 'X'});
+      expect(m.categoryPath, isNull);
+    });
+
+    test('CatalogCategory parses category + count', () {
+      final c = CatalogCategory.fromJson({
+        'category': 'Kas İskelet Sistemi',
+        'count': 842,
+      });
+      expect(c.category, 'Kas İskelet Sistemi');
+      expect(c.count, 842);
+    });
   });
 
   test('UserProfile parses snake_case notification preferences', () {

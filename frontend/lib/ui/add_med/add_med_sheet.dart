@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import 'package:medtrack/features/medications/medication_dto.dart';
 import 'package:medtrack/features/medications/medication_repository.dart';
 import 'package:medtrack/models/medication.dart';
 import 'package:medtrack/services/notification_service.dart' show kMaxReminders;
@@ -55,6 +56,14 @@ class _AddMedSheetState extends State<AddMedSheet> {
   late String? _catalogId = widget.editing?.catalogId;
   bool _scanning = false;
 
+  // Catalog category browse/filter (new-med flow only — see _scanBarcode's
+  // gating comment for why CatalogRepository may be absent).
+  List<CatalogCategory> _categories = const [];
+  String? _selectedCategory;
+  List<CatalogMedication> _suggestions = const [];
+  bool _loadingSuggestions = false;
+  bool _categoriesRequested = false;
+
   int _step = 0;
   String? _pickedPhoto;
   bool _saved = false;
@@ -67,6 +76,7 @@ class _AddMedSheetState extends State<AddMedSheet> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _app = context.read<AppState>();
+    _loadCategoriesOnce();
   }
 
   @override
@@ -305,8 +315,17 @@ class _AddMedSheetState extends State<AddMedSheet> {
         _SheetField(
           controller: _nameCtrl,
           hint: 'Medication name',
-          onChanged: (_) => setState(() {}),
+          onChanged: (_) {
+            setState(() {});
+            if (_selectedCategory != null) _runCatalogSearch();
+          },
         ),
+        if (widget.editing == null && _categories.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          _categoryFilterRow(),
+        ],
+        if (widget.editing == null && _suggestions.isNotEmpty)
+          _catalogSuggestions(),
         const SizedBox(height: 10),
         _SheetField(controller: _doseCtrl, hint: 'Dosage — e.g. 400 mg'),
         const SizedBox(height: 10),
@@ -353,6 +372,102 @@ class _AddMedSheetState extends State<AddMedSheet> {
               DropdownMenuItem(value: u, child: Text(u)),
           ],
           onChanged: (v) => setState(() => _unit = v ?? 'pills'),
+        ),
+      ),
+    );
+  }
+
+  /// Row of tappable chips — one per top-level therapeutic category, from
+  /// `GET /medications/categories` — that narrows catalog suggestions below.
+  Widget _categoryFilterRow() {
+    return SizedBox(
+      height: 34,
+      child: Row(
+        children: [
+          Expanded(
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _categories.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, i) {
+                final cat = _categories[i];
+                final selected = _selectedCategory == cat.category;
+                return GestureDetector(
+                  onTap: () => _toggleCategory(cat.category),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(999),
+                      color: selected ? MedColors.tealBright : Colors.white,
+                      border: Border.all(
+                        color: selected
+                            ? MedColors.tealDeep
+                            : const Color(0x385A4C37),
+                      ),
+                    ),
+                    child: Text(
+                      cat.category,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: selected
+                            ? MedColors.tealInk
+                            : MedColors.textSoft,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          if (_loadingSuggestions) ...[
+            const SizedBox(width: 8),
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation(MedColors.tealDeep),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Catalog matches for the current name text + selected category. Tapping
+  /// one prefills name/strength and links `_catalogId`, mirroring barcode scan.
+  Widget _catalogSuggestions() {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      constraints: const BoxConstraints(maxHeight: 160),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0x385A4C37)),
+      ),
+      // A Material ancestor so each ListTile's ink splash paints on it rather
+      // than being hidden behind this Container's own decorated background.
+      child: Material(
+        color: Colors.transparent,
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: _suggestions.length,
+          itemBuilder: (context, i) {
+            final m = _suggestions[i];
+            final subtitle = m.strength ?? '';
+            return ListTile(
+              dense: true,
+              title: Text(m.name, style: const TextStyle(fontSize: 13.5)),
+              subtitle: subtitle.isEmpty
+                  ? null
+                  : Text(subtitle, style: const TextStyle(fontSize: 11.5)),
+              onTap: () => _pickSuggestion(m),
+            );
+          },
         ),
       ),
     );
@@ -405,6 +520,64 @@ class _AddMedSheetState extends State<AddMedSheet> {
       lastDate: DateTime(now.year + 15),
     );
     if (picked != null) setState(() => _expiry = picked);
+  }
+
+  /// Loads the top-level category list once, for the new-med flow only.
+  /// Best-effort: on any failure (or when the catalog repo isn't wired into
+  /// this provider tree, e.g. widget tests) the filter row just stays hidden.
+  Future<void> _loadCategoriesOnce() async {
+    if (_categoriesRequested || widget.editing != null) return;
+    _categoriesRequested = true;
+    final CatalogRepository catalog;
+    try {
+      catalog = context.read<CatalogRepository>();
+    } catch (_) {
+      return;
+    }
+    try {
+      final cats = await catalog.categories();
+      if (mounted) setState(() => _categories = cats);
+    } catch (_) {
+      // Non-fatal — category browsing is an optional narrowing affordance.
+    }
+  }
+
+  void _toggleCategory(String category) {
+    setState(() {
+      _selectedCategory = _selectedCategory == category ? null : category;
+      if (_selectedCategory == null) _suggestions = const [];
+    });
+    if (_selectedCategory != null) _runCatalogSearch();
+  }
+
+  Future<void> _runCatalogSearch() async {
+    final category = _selectedCategory;
+    if (category == null) return;
+    final CatalogRepository catalog;
+    try {
+      catalog = context.read<CatalogRepository>();
+    } catch (_) {
+      return;
+    }
+    final query = _nameCtrl.text.trim();
+    setState(() => _loadingSuggestions = true);
+    try {
+      final (results, _) = await catalog.search(query, category: category);
+      if (mounted) setState(() => _suggestions = results);
+    } catch (_) {
+      if (mounted) setState(() => _suggestions = const []);
+    } finally {
+      if (mounted) setState(() => _loadingSuggestions = false);
+    }
+  }
+
+  void _pickSuggestion(CatalogMedication m) {
+    setState(() {
+      _nameCtrl.text = m.name;
+      if ((m.strength ?? '').isNotEmpty) _doseCtrl.text = m.strength!;
+      _catalogId = m.id;
+      _suggestions = const [];
+    });
   }
 
   Future<void> _scanBarcode() async {
