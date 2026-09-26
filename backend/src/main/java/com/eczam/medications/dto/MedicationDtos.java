@@ -11,12 +11,17 @@ public final class MedicationDtos {
     public record MedicationView(
             String id, String name, String genericName, String manufacturer,
             String barcode, String form, String strength,
+            List<String> categoryPath,
             boolean vectorIndexed) {}
 
     public record MedicationDetail(
             String id, String name, String genericName, String manufacturer,
             String barcode, String form, String strength,
+            List<String> categoryPath,
             LeafletSections leafletSections, boolean vectorIndexed) {}
+
+    /** Top-level therapeutic category (first element of `category_path`) with its medication count. */
+    public record CategorySummary(String category, long count) {}
 
     public record CreateMedicationRequest(
             @NotBlank @Size(max = 255) String name,
