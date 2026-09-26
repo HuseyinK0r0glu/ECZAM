@@ -7,11 +7,31 @@ class CatalogRepository {
   final ApiClient api;
   CatalogRepository(this.api);
 
-  Future<List<CatalogMedication>> search(String query, {int limit = 20}) async {
+  /// [category] optionally narrows to medications whose top-level
+  /// `category_path` entry exactly matches (see `GET /medications/categories`).
+  Future<List<CatalogMedication>> search(
+    String query, {
+    int limit = 20,
+    String? category,
+  }) async {
     final (items, _) = await api.getList(
       '/medications',
       (j) => CatalogMedication.fromJson((j as Map).cast<String, dynamic>()),
-      query: {if (query.isNotEmpty) 'q': query, 'limit': limit},
+      query: {
+        if (query.isNotEmpty) 'q': query,
+        if (category != null && category.isNotEmpty) 'category': category,
+        'limit': limit,
+      },
+    );
+    return items;
+  }
+
+  /// Distinct top-level therapeutic categories with medication counts, most
+  /// common first — powers the category filter on the catalog search UI.
+  Future<List<CatalogCategory>> categories() async {
+    final (items, _) = await api.getList(
+      '/medications/categories',
+      (j) => CatalogCategory.fromJson((j as Map).cast<String, dynamic>()),
     );
     return items;
   }

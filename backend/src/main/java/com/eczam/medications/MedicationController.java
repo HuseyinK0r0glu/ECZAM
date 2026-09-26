@@ -23,13 +23,22 @@ public class MedicationController {
     public MedicationController(MedicationService service) { this.service = service; }
 
     @Operation(summary = "Search medication catalog",
-               description = "Full-text search across medication names. Returns up to `limit` results with cursor-based pagination metadata.")
+               description = "Full-text search across medication names. Optionally filter to a top-level therapeutic category (exact match on the first element of category_path). Returns up to `limit` results with cursor-based pagination metadata.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Medication list with cursor meta")
     @GetMapping
     public ApiResponse<List<MedicationView>> list(
             @Parameter(description = "Search query (name, brand, or active ingredient)") @RequestParam(required = false) String q,
+            @Parameter(description = "Filter to a top-level therapeutic category (exact match)") @RequestParam(required = false) String category,
             @Parameter(description = "Max results (default 20, max 100)") @RequestParam(defaultValue = "20") int limit) {
-        return ApiResponse.ok(service.search(q, limit), service.cursorMeta(limit));
+        return ApiResponse.ok(service.search(q, category, limit), service.cursorMeta(limit));
+    }
+
+    @Operation(summary = "List therapeutic categories",
+               description = "Returns the distinct top-level therapeutic categories present in the catalog (first element of each medication's category_path), each with its medication count, ordered by count descending.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Category counts")
+    @GetMapping("/categories")
+    public ApiResponse<List<CategorySummary>> categories() {
+        return ApiResponse.ok(service.categories());
     }
 
     @Operation(summary = "Get medication details",

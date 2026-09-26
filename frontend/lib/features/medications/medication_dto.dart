@@ -11,6 +11,9 @@ class CatalogMedication {
   final String? barcode;
   final String? form;
   final String? strength;
+  /// Cleaned ordered therapeutic-category hierarchy (first element = top
+  /// level), or null when the catalog row has none.
+  final List<String>? categoryPath;
   final bool vectorIndexed;
 
   const CatalogMedication({
@@ -21,6 +24,7 @@ class CatalogMedication {
     this.barcode,
     this.form,
     this.strength,
+    this.categoryPath,
     this.vectorIndexed = false,
   });
 
@@ -33,7 +37,24 @@ class CatalogMedication {
         barcode: j['barcode'] as String?,
         form: j['form'] as String?,
         strength: j['strength'] as String?,
+        categoryPath: (j['categoryPath'] as List?)
+            ?.map((e) => e as String)
+            .toList(),
         vectorIndexed: (j['vectorIndexed'] as bool?) ?? false,
+      );
+}
+
+/// One entry from `GET /medications/categories`: a top-level therapeutic
+/// category (the first element of `category_path`) with its medication count.
+class CatalogCategory {
+  final String category;
+  final int count;
+
+  const CatalogCategory({required this.category, required this.count});
+
+  factory CatalogCategory.fromJson(Map<String, dynamic> j) => CatalogCategory(
+        category: (j['category'] as String?) ?? '',
+        count: (j['count'] as num?)?.toInt() ?? 0,
       );
 }
 

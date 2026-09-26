@@ -87,12 +87,23 @@ Every response uses `{ data, meta, error }`:
 
 | Method | Path | Auth | Purpose | FRs |
 |---|---|:--:|---|---|
-| GET | `/api/v1/medications` | ✓ | Search/list catalog (`?q=&cursor=&limit=`) | FR-010 |
+| GET | `/api/v1/medications` | ✓ | Search/list catalog (`?q=&category=&cursor=&limit=`) | FR-010 |
+| GET | `/api/v1/medications/categories` | ✓ | Distinct top-level therapeutic categories with medication counts, most-common first | FR-010 |
 | GET | `/api/v1/medications/{id}` | ✓ | Catalog medication detail | FR-010,015 |
 | POST | `/api/v1/medications` | ✓ | Create catalog medication (manual) | FR-011 |
 | GET | `/api/v1/medications/barcode/{code}` | ✓ | Lookup by barcode (local → OpenFDA fallback → ingest) | FR-012,013,014 |
 | GET | `/api/v1/medications/{id}/leaflet` | ✓ | Structured leaflet sections | FR-015,060 |
 | GET | `/api/v1/medications/{id}/leaflet/search` | ✓ | Full-text search across leaflet sections (`?q=`) | FR-061 |
+
+```jsonc
+// GET /api/v1/medications/categories
+// 200 → { "data": [ { "category": "Kas İskelet Sistemi", "count": 842 }, … ] }  // ordered by count desc
+```
+
+`category` on `GET /medications` filters to medications whose top-level
+`category_path` entry exactly matches (e.g. `?category=Kas%20İskelet%20Sistemi`);
+omitting it behaves exactly as before. Medications with no `category_path` are
+excluded from `/categories` counts and never match a `category` filter.
 
 ```jsonc
 // GET /api/v1/medications/barcode/8699{...}

@@ -31,9 +31,19 @@ public class MedicationService {
     }
 
     @Transactional(readOnly = true)
-    public List<MedicationView> search(String q, int limit) {
-        return repo.search(q == null || q.isBlank() ? null : q, PageRequest.of(0, limit))
+    public List<MedicationView> search(String q, String category, int limit) {
+        return repo.search(q == null || q.isBlank() ? null : q,
+                        category == null || category.isBlank() ? null : category,
+                        PageRequest.of(0, limit))
                 .map(MedicationService::toView).getContent();
+    }
+
+    /** Distinct top-level therapeutic categories (first element of category_path), with counts, most-common first. */
+    @Transactional(readOnly = true)
+    public List<CategorySummary> categories() {
+        return repo.findCategoryCounts().stream()
+                .map(c -> new CategorySummary(c.getCategory(), c.getCnt()))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -126,12 +136,13 @@ public class MedicationService {
 
     static MedicationView toView(Medication m) {
         return new MedicationView(m.getId().toString(), m.getName(), m.getGenericName(),
-                m.getManufacturer(), m.getBarcode(), m.getForm(), m.getStrength(), m.isVectorIndexed());
+                m.getManufacturer(), m.getBarcode(), m.getForm(), m.getStrength(),
+                m.getCategoryPath(), m.isVectorIndexed());
     }
     static MedicationDetail toDetail(Medication m) {
         return new MedicationDetail(m.getId().toString(), m.getName(), m.getGenericName(),
                 m.getManufacturer(), m.getBarcode(), m.getForm(), m.getStrength(),
-                m.getLeafletSections(), m.isVectorIndexed());
+                m.getCategoryPath(), m.getLeafletSections(), m.isVectorIndexed());
     }
     private static String emptyToNull(String s) { return s == null || s.isBlank() ? null : s; }
 }
