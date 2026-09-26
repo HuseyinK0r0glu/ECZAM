@@ -47,3 +47,51 @@ class LogResult {
         lowStock: (j['lowStock'] as bool?) ?? false,
       );
 }
+
+/// One day's expected-vs-taken dose count within an [AdherenceSummary].
+class AdherenceDay {
+  final DateTime date;
+  final int expected;
+  final int taken;
+
+  const AdherenceDay({
+    required this.date,
+    required this.expected,
+    required this.taken,
+  });
+
+  factory AdherenceDay.fromJson(Map<String, dynamic> j) => AdherenceDay(
+        date: DateTime.parse(j['date'] as String),
+        expected: (j['expected'] as num?)?.toInt() ?? 0,
+        taken: (j['taken'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// `{ currentStreak, longestStreak, windowDays, days }` returned by
+/// `GET /medication-logs/adherence` — a server-computed streak over the
+/// user's full, never-purged dose-log history. Unlike the client-only
+/// [WeekSummary] (state/adherence.dart), which only sees the local 7-day
+/// SQLite mirror, this can reflect a real multi-week streak.
+class AdherenceSummary {
+  final int currentStreak;
+  final int longestStreak;
+  final int windowDays;
+  final List<AdherenceDay> days;
+
+  const AdherenceSummary({
+    required this.currentStreak,
+    required this.longestStreak,
+    required this.windowDays,
+    required this.days,
+  });
+
+  factory AdherenceSummary.fromJson(Map<String, dynamic> j) =>
+      AdherenceSummary(
+        currentStreak: (j['currentStreak'] as num?)?.toInt() ?? 0,
+        longestStreak: (j['longestStreak'] as num?)?.toInt() ?? 0,
+        windowDays: (j['windowDays'] as num?)?.toInt() ?? 0,
+        days: ((j['days'] as List?) ?? const [])
+            .map((e) => AdherenceDay.fromJson((e as Map).cast<String, dynamic>()))
+            .toList(),
+      );
+}

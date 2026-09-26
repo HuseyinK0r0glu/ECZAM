@@ -145,12 +145,21 @@ Every response uses `{ data, meta, error }`:
 |---|---|:--:|---|---|
 | POST | `/api/v1/medication-logs` | ✓ | Log a dose → **atomic** insert + inventory decrement | FR-040,041,042,043 |
 | GET | `/api/v1/medication-logs` | ✓ | History (`?userMedicationId=&from=&to=&cursor=&limit=`) | FR-044 |
+| GET | `/api/v1/medication-logs/adherence` | ✓ | Server-computed adherence streak over the full log history | FR-044 |
 
 ```jsonc
 // POST /api/v1/medication-logs  (request)
 { "userMedicationId": "…", "quantityUsed": 1, "scheduleId": "…", "notes": null }
 // 201 → { "data": { "log": { "id": "…", "takenAt": "…" }, "newQuantity": 29, "lowStock": false } }
 // 422 INSUFFICIENT_STOCK (quantity would go negative)
+
+// GET /api/v1/medication-logs/adherence
+// 200 → { "data": { "currentStreak": 5, "longestStreak": 9, "windowDays": 14,
+//                    "days": [ { "date": "2026-06-05", "expected": 2, "taken": 2 }, … ] } }
+// Window: last 90 days, or since the earliest schedule's startsOn if more
+// recent. A day with expected==0 doesn't break a streak; expected>0 with
+// taken<expected does. See AdherenceService for the full rule (unlike the
+// client's 7-day local mirror, medication_logs is never purged).
 ```
 
 ## 7. Expiration

@@ -46,4 +46,11 @@ class LogRepository {
     );
     return items;
   }
+
+  /// Server-computed adherence streak over the full dose-log history (not
+  /// just the client's local 7-day mirror) — `GET /medication-logs/adherence`.
+  Future<AdherenceSummary> adherence() => api.getOne(
+        '/medication-logs/adherence',
+        (j) => AdherenceSummary.fromJson((j as Map).cast<String, dynamic>()),
+      );
 }

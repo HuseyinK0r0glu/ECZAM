@@ -1,5 +1,9 @@
 import 'package:image_picker/image_picker.dart';
+import 'package:medtrack/core/api/api_client.dart';
+import 'package:medtrack/core/token_store.dart';
 import 'package:medtrack/data/medication_repository.dart';
+import 'package:medtrack/features/logs/log_dto.dart';
+import 'package:medtrack/features/logs/log_repository.dart';
 import 'package:medtrack/models/dose_log.dart';
 import 'package:medtrack/models/medication.dart';
 import 'package:medtrack/services/notification_service.dart';
@@ -150,4 +154,16 @@ class FakePhotoService extends PhotoService {
 
   @override
   Future<void> delete(String? fileName) async {}
+}
+
+/// Returns a canned [AdherenceSummary] with no network I/O. LogRepository
+/// isn't behind an interface, so this subclasses it and overrides just the
+/// one method HistoryScreen calls; the underlying ApiClient is never used.
+class FakeLogRepository extends LogRepository {
+  final AdherenceSummary summary;
+
+  FakeLogRepository(this.summary) : super(ApiClient(tokenStore: TokenStore()));
+
+  @override
+  Future<AdherenceSummary> adherence() async => summary;
 }
