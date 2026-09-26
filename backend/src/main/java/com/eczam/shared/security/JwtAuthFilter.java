@@ -27,6 +27,27 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         this.users = users;
     }
 
+    // OncePerRequestFilter's default (true) skips this filter on the async dispatch
+    // that finalizes a streaming (SseEmitter) response — e.g. ChatController's SSE
+    // endpoint, whose completion runs on a background executor thread instead of the
+    // original request thread. SecurityContextHolder is thread-local and nothing else
+    // re-populates it for that dispatch, so Spring Security's authorization check
+    // then runs against an empty context and overwrites the whole response with a 401
+    // — even though the request was already correctly authenticated. Re-running this
+    // filter re-derives the same authentication from the (still present) Authorization
+    // header instead.
+    @Override
+    protected boolean shouldNotFilterAsyncDispatch() {
+        return false;
+    }
+
+    // Same reasoning as shouldNotFilterAsyncDispatch(), for the error-flavored async
+    // dispatch a timed-out or abruptly-erroring streaming response can also trigger.
+    @Override
+    protected boolean shouldNotFilterErrorDispatch() {
+        return false;
+    }
+
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest req, @NonNull HttpServletResponse res,
                                     @NonNull FilterChain chain) throws ServletException, IOException {

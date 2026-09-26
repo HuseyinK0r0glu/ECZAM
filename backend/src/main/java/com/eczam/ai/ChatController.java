@@ -11,8 +11,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
+import org.springframework.security.concurrent.DelegatingSecurityContextExecutorService;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -27,9 +30,19 @@ import java.util.concurrent.Executors;
 @RequestMapping("/ai")
 public class ChatController {
 
+    private static final Logger log = LoggerFactory.getLogger(ChatController.class);
+
     private final RagService rag;
     private final Counter aiQueriesCounter;
-    private final ExecutorService executor = Executors.newCachedThreadPool();
+    // Wrapped so the SecurityContext captured on the request thread travels with the
+    // task onto this executor's thread. Without it, the async dispatch Spring MVC
+    // performs when the emitter completes (emitter.complete()/completeWithError(),
+    // called from THIS executor's thread, not the original request thread) re-runs
+    // Spring Security's authorization check against an empty context and overwrites
+    // the whole SSE response with a 401 — even though the controller itself already
+    // returned 200 and authorization had already passed for this request.
+    private final ExecutorService executor =
+            new DelegatingSecurityContextExecutorService(Executors.newCachedThreadPool());
 
     public ChatController(RagService rag,
                           @Qualifier("aiQueriesCounter") Counter aiQueriesCounter) {
@@ -75,7 +88,17 @@ public class ChatController {
                 emitter.send(SseEmitter.event().name("done").data("{\"grounded\":" + grounded + "}"));
                 emitter.complete();
             } catch (Exception e) {
-                emitter.completeWithError(e);
+                // Any upstream failure (e.g. the embedding provider rejecting the
+                // request, a transient outage) degrades to the same "couldn't ground
+                // the answer" guardrail path a client already has to handle, instead
+                // of completeWithError(): that call triggers a second, error-flavored
+                // async dispatch that re-enters the whole servlet filter chain on a
+                // thread with no request context, which Spring Security then rejects
+                // as unauthenticated — turning an unrelated backend/upstream failure
+                // into a response that looks like an auth problem to the caller.
+                log.error("AI chat failed; responding with a declined (ungrounded) answer", e);
+                sendQuietly(emitter, "done", "{\"grounded\":false}");
+                emitter.complete();
             }
         });
         return emitter;
